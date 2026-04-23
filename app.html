@@ -1024,10 +1024,6 @@
             </button>
             <div class="profile-menu" id="profileMenu" role="menu" hidden>
                 <div class="profile-menu-email" id="profileMenuEmail" style="padding:10px 14px 8px;font-size:0.78rem;color:var(--text-light);border-bottom:1px solid var(--border);word-break:break-all;line-height:1.4;display:none;"></div>
-                <button class="profile-menu-item" id="menuChangeKey" role="menuitem">
-                    <span class="profile-menu-icon">🔑</span>
-                    <span class="profile-menu-text">API 키 변경</span>
-                </button>
                 <button class="profile-menu-item" id="menuLogout" role="menuitem">
                     <span class="profile-menu-icon">🚪</span>
                     <span class="profile-menu-text">로그아웃</span>
@@ -9127,11 +9123,10 @@ document.getElementById('reportEmptyCta').addEventListener('click',function(){sh
 // Home button listener
 document.getElementById('btnWrongNote').addEventListener('click',function(){WrongNote.open();});
 document.getElementById('btnReport').addEventListener('click',function(){Report.open();});
-// 프로필 메뉴 + 키 변경 + 로그아웃
+// 프로필 메뉴 + 로그아웃
 (function(){
     var btn=document.getElementById('btnProfile');
     var menu=document.getElementById('profileMenu');
-    var changeKey=document.getElementById('menuChangeKey');
     var logoutBtn=document.getElementById('menuLogout');
     var emailBox=document.getElementById('profileMenuEmail');
     if(!btn || !menu) return;
@@ -9168,16 +9163,6 @@ document.getElementById('btnReport').addEventListener('click',function(){Report.
     document.addEventListener('keydown',function(e){
         if(e.key==='Escape' && !menu.hidden) closeMenu();
     });
-
-    if(changeKey){
-        changeKey.addEventListener('click',function(){
-            closeMenu();
-            if(!confirm('저장된 API 키를 삭제하고 입력 화면으로 돌아갈까?\n(이 세션의 학습 기록은 유지돼요)')) return;
-            try{window.Studia && window.Studia.clearKey && window.Studia.clearKey();}catch(e){}
-            try{window.Studia && window.Studia.track && window.Studia.track('key_reset',{});}catch(e){}
-            showScreen('screenSetup');
-        });
-    }
 
     if(logoutBtn){
         logoutBtn.addEventListener('click',function(){
@@ -9701,16 +9686,16 @@ var Chat={
 })();
 </script>
 
-<!-- ── 약관/개인정보 모달 (4번, 초안) ── -->
+<!-- ── 약관/개인정보 모달 ── -->
 <div class="legal-modal" id="modalTerms" role="dialog" aria-modal="true" aria-labelledby="modalTermsTitle">
     <div class="legal-modal-box">
         <div class="legal-modal-header">
-            <h3 id="modalTermsTitle">Studia 이용약관 (초안)</h3>
+            <h3 id="modalTermsTitle">Studia 이용약관</h3>
             <button class="legal-modal-close" data-close-modal="modalTerms" aria-label="닫기" type="button">&times;</button>
         </div>
         <div class="legal-modal-body">
             <div class="legal-draft-notice">
-                ⚠️ <b>본 약관은 초안(Draft)입니다.</b> 서비스 정식 출시 전 법률 전문가 검토 후 최종본이 게시될 예정입니다. 결제 세부 정책은 결제 시스템 구현 완료 후 확정됩니다.
+                본 약관은 스터디아(사업자등록번호 240-37-01262, 대표 유호권)가 제공하는 AI 학습 보조 서비스의 이용에 관한 사항을 정합니다.
             </div>
 
             <h4>제1조 (목적)</h4>
@@ -9744,7 +9729,7 @@ var Chat={
             <ul>
                 <li>본 서비스는 월 정기결제(구독) 방식으로 제공됩니다.</li>
                 <li>이용료는 월 18,900원(부가세 포함)입니다. 이용료는 운영자의 정책에 따라 변경될 수 있으며, 변경 시 제3조에 따라 사전 공지됩니다.</li>
-                <li>결제는 토스페이먼츠 등 결제대행사를 통해 처리되며, 구체적인 결제 수단 및 절차는 결제 화면에 명시됩니다. <em>(※ 결제 세부 정책은 결제 시스템 구현 완료 후 확정됩니다.)</em></li>
+                <li>결제는 토스페이먼츠(주)를 통해 처리되며, 구체적인 결제 수단 및 절차는 결제 화면에 명시됩니다.</li>
             </ul>
 
             <h4>제7조 (무료 체험 및 자동 결제 전환)</h4>
@@ -9795,8 +9780,8 @@ var Chat={
             <p>본 약관은 대한민국 법령에 따라 해석됩니다. 서비스 이용과 관련하여 분쟁이 발생할 경우 운영자와 회원은 원만한 해결을 위해 성실히 협의하며, 협의로 해결되지 않을 경우 민사소송법상 관할 법원을 전속적 관할로 합니다.</p>
 
             <p style="color:var(--text-light);font-size:0.8rem;margin-top:16px;">
-                부칙: 본 약관은 2026년 __월 __일부터 시행됩니다. (※ 정식 서비스 출시일에 맞춰 확정)<br>
-                최종 개정일: 2026-04-22 (초안)
+                부칙: 본 약관은 2026년 4월 23일부터 시행됩니다.<br>
+                최종 개정일: 2026-04-23
             </p>
         </div>
         <div class="legal-modal-footer">
@@ -9808,12 +9793,12 @@ var Chat={
 <div class="legal-modal" id="modalPrivacy" role="dialog" aria-modal="true" aria-labelledby="modalPrivacyTitle">
     <div class="legal-modal-box">
         <div class="legal-modal-header">
-            <h3 id="modalPrivacyTitle">개인정보 처리방침 (초안)</h3>
+            <h3 id="modalPrivacyTitle">개인정보 처리방침</h3>
             <button class="legal-modal-close" data-close-modal="modalPrivacy" aria-label="닫기" type="button">&times;</button>
         </div>
         <div class="legal-modal-body">
             <div class="legal-draft-notice">
-                ⚠️ <b>본 방침은 초안(Draft)입니다.</b> 「개인정보 보호법」·「정보통신망 이용촉진 및 정보보호 등에 관한 법률」에 따라 법률 전문가의 검토가 반드시 필요하며, 실제 상용 서비스 시작 전 상호·사업자등록번호·대표자·개인정보 보호책임자 정보가 확정되어야 합니다. 아래 "추후 확정" 표기된 항목은 토스페이먼츠 가맹점 심사 및 사업자등록 완료 후 업데이트됩니다.
+                스터디아(사업자등록번호 240-37-01262, 대표 유호권)는 「개인정보 보호법」 등 관련 법령에 따라 이용자의 개인정보를 보호하고 이에 관한 고충을 신속하게 처리하기 위해 본 방침을 수립·공개합니다.
             </div>
 
             <p>스터디아(이하 "서비스")는 이용자의 개인정보를 중요하게 여기며, 「개인정보 보호법」 등 관련 법령을 준수하기 위해 노력합니다. 본 처리방침은 서비스가 어떤 개인정보를 수집·이용·보관·파기하는지, 이용자가 어떤 권리를 행사할 수 있는지를 안내합니다.</p>
@@ -9891,7 +9876,7 @@ var Chat={
                 <li>삭제 요구 (계정 탈퇴)</li>
                 <li>처리 정지 요구</li>
             </ul>
-            <p>권리 행사는 서비스 내 "계정 설정" 또는 운영자 이메일(healinlee8010@gmail.com)로 요청하시면, 본인 확인 후 지체 없이 조치합니다.</p>
+            <p>권리 행사는 서비스 내 "계정 설정" 또는 개인정보관리책임자 이메일(hll@studia.co.kr)로 요청하시면, 본인 확인 후 지체 없이 조치합니다.</p>
 
             <h4>제7조 (쿠키의 설치·운영 및 거부)</h4>
             <p>서비스는 로그인 상태 유지, 이용자 편의 제공 등을 위해 쿠키(cookie)를 사용합니다. 이용자는 브라우저 설정에서 쿠키 저장을 거부할 수 있으나, 이 경우 일부 서비스(예: 로그인 유지) 이용에 제한이 있을 수 있습니다.</p>
@@ -9910,9 +9895,9 @@ var Chat={
             <h4>제10조 (개인정보 보호책임자)</h4>
             <p>서비스는 이용자의 개인정보를 보호하고 개인정보와 관련한 불만을 처리하기 위하여 아래와 같이 개인정보 보호책임자를 지정합니다.</p>
             <ul>
-                <li>성명: [추후 확정 — 사업자등록 완료 시 기재]</li>
+                <li>성명: 이혜린</li>
                 <li>직책: 개인정보 보호책임자</li>
-                <li>이메일: healinlee8010@gmail.com</li>
+                <li>이메일: hll@studia.co.kr</li>
             </ul>
             <p>기타 개인정보 침해 신고 및 상담이 필요한 경우 아래 기관에 문의하실 수 있습니다.</p>
             <ul>
@@ -9926,8 +9911,8 @@ var Chat={
             <p>본 방침은 법령·정책 또는 보안기술의 변경에 따라 내용의 추가·삭제 및 수정이 있을 수 있으며, 변경 시 서비스 내 공지사항을 통해 고지합니다. 중요한 변경의 경우 시행일 7일 전부터 고지합니다.</p>
 
             <p style="color:var(--text-light);font-size:0.85rem;margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;">
-                <b>시행일자:</b> [추후 확정 — 실제 상용 서비스 개시일]<br>
-                <b>최종 수정일:</b> 2026-04-22 (초안)
+                <b>시행일자:</b> 2026년 4월 23일<br>
+                <b>최종 수정일:</b> 2026년 4월 23일
             </p>
         </div>
         <div class="legal-modal-footer">
