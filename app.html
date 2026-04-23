@@ -9248,7 +9248,7 @@ var Chat={
     addAI:function(area,text){
         var w=document.createElement('div');
         w.className='msg msg-ai';
-        w.innerHTML='<div class="msg-ai-row"><div class="msg-avatar">S</div><div class="msg-bubble">'+escHtml(text)+'</div></div><div class="msg-time">'+timeStr()+'</div>';
+        w.innerHTML='<div class="msg-ai-row"><div class="msg-avatar">S</div><div class="msg-bubble">'+escHtml(stripMarkdown(text))+'</div></div><div class="msg-time">'+timeStr()+'</div>';
         area.appendChild(w);
         renderKaTeX(w);
         this.scrollBottom(area);
