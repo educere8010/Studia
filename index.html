@@ -485,9 +485,20 @@
         }
         .footer-links a:hover,.footer-links button:hover{color:var(--navy);}
         .footer-sep{color:var(--border);}
+        .footer-business{
+            font-size:0.82rem;color:var(--text-light);
+            line-height:1.75;max-width:720px;margin:0 auto;
+            word-break:keep-all;
+        }
+        .footer-business .biz-sep{color:var(--border);margin:0 8px;}
+        .footer-business .biz-row{display:block;}
         .footer-copy{
             font-size:0.82rem;color:var(--text-light);
             padding-top:16px;border-top:1px solid var(--border-soft);
+        }
+        @media (max-width:640px){
+            .footer-business{font-size:0.78rem;line-height:1.7;}
+            .footer-business .biz-sep{margin:0 6px;}
         }
 
         /* ========== Legal Modal ========== */
@@ -788,7 +799,18 @@
                 <span class="footer-sep" aria-hidden="true">·</span>
                 <button type="button" onclick="openModal('modalPrivacy')">개인정보처리방침</button>
                 <span class="footer-sep" aria-hidden="true">·</span>
-                <a href="mailto:healinlee8010@gmail.com">문의</a>
+                <a href="mailto:hkbyoo@studiaedu.com">문의</a>
+            </div>
+            <div class="footer-business">
+                <span class="biz-row">
+                    <b>스터디아</b><span class="biz-sep">|</span>대표 유호권<span class="biz-sep">|</span>사업자등록번호 240-37-01262<span class="biz-sep">|</span>통신판매업신고 2026-경남양산-0319
+                </span>
+                <span class="biz-row">
+                    경남 양산시 물금읍 신주 1길 46<span class="biz-sep">|</span>대표번호 <a href="tel:+82-70-7954-6105">070-7954-6105</a><span class="biz-sep">|</span><a href="mailto:hkbyoo@studiaedu.com">hkbyoo@studiaedu.com</a>
+                </span>
+                <span class="biz-row">
+                    개인정보관리책임자 이혜린 (<a href="mailto:educere8010@gmail.com">educere8010@gmail.com</a>)
+                </span>
             </div>
             <div class="footer-copy">&copy; 2026 Studia. All rights reserved.</div>
         </div>
@@ -802,8 +824,8 @@
                 <button class="modal-close" onclick="closeModal('modalTerms')" aria-label="닫기">×</button>
             </div>
             <div class="modal-body">
-                <p style="color:var(--text-light);font-size:0.88rem;background:#fff8ec;padding:10px 12px;border-radius:8px;border:1px solid #f5d990;">
-                    ⚠️ <b>본 약관은 초안(Draft)입니다.</b> 정식 서비스 개시 전까지 법률 전문가의 검토를 거쳐 확정·공지됩니다. "추후 확정" 표기된 항목은 사업자등록 및 토스페이먼츠 가맹점 심사 완료 후 업데이트됩니다.
+                <p style="color:var(--text-light);font-size:0.88rem;background:#f3f4ff;padding:10px 12px;border-radius:8px;border:1px solid var(--border-soft);">
+                    본 약관은 스터디아(사업자등록번호 240-37-01262)가 제공하는 AI 학습 보조 서비스의 이용에 관한 사항을 정합니다.
                 </p>
 
                 <h4>제1조 (목적)</h4>
@@ -840,7 +862,7 @@
                 <ul>
                     <li>서비스의 월 구독료는 <b>18,900원(VAT 포함)</b>입니다.</li>
                     <li>결제는 토스페이먼츠(주)를 통해 월 자동 정기결제 방식으로 처리됩니다.</li>
-                    <li>구체적인 결제수단·해외카드 지원 여부·영수증 발급 방식은 [추후 확정]합니다.</li>
+                    <li>결제수단: 토스페이먼츠가 지원하는 국내 신용·체크카드. 해외카드 및 영수증 발급 정책은 토스페이먼츠 약관에 따릅니다.</li>
                 </ul>
 
                 <h4>제7조 (무료 체험 및 자동 결제 전환)</h4>
@@ -890,8 +912,8 @@
                 </ul>
 
                 <p style="color:var(--text-light);font-size:0.85rem;margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb;">
-                    <b>시행일자:</b> [추후 확정 — 실제 상용 서비스 개시일]<br>
-                    <b>최종 수정일:</b> 2026-04-22 (초안)
+                    <b>시행일자:</b> 2026년 4월 23일<br>
+                    <b>최종 수정일:</b> 2026년 4월 23일
                 </p>
             </div>
         </div>
@@ -904,8 +926,8 @@
                 <button class="modal-close" onclick="closeModal('modalPrivacy')" aria-label="닫기">×</button>
             </div>
             <div class="modal-body">
-                <p style="color:var(--text-light);font-size:0.88rem;background:#fff8ec;padding:10px 12px;border-radius:8px;border:1px solid #f5d990;">
-                    ⚠️ <b>본 방침은 초안(Draft)입니다.</b> 「개인정보 보호법」·「정보통신망 이용촉진 및 정보보호 등에 관한 법률」에 따라 법률 전문가의 검토가 반드시 필요하며, 실제 상용 서비스 시작 전 상호·사업자등록번호·대표자·개인정보 보호책임자 정보가 확정되어야 합니다.
+                <p style="color:var(--text-light);font-size:0.88rem;background:#f3f4ff;padding:10px 12px;border-radius:8px;border:1px solid var(--border-soft);">
+                    스터디아(사업자등록번호 240-37-01262, 대표 유호권)는 「개인정보 보호법」 등 관련 법령에 따라 이용자의 개인정보를 보호하고 이에 관한 고충을 신속하게 처리하기 위해 본 방침을 수립·공개합니다.
                 </p>
 
                 <p>스터디아(이하 "서비스")는 이용자의 개인정보를 중요하게 여기며, 「개인정보 보호법」 등 관련 법령을 준수합니다. 본 처리방침은 서비스가 어떤 개인정보를 수집·이용·보관·파기하는지, 이용자가 어떤 권리를 행사할 수 있는지를 안내합니다.</p>
@@ -978,7 +1000,7 @@
                     <li>삭제 요구 (계정 탈퇴)</li>
                     <li>처리 정지 요구</li>
                 </ul>
-                <p>권리 행사는 서비스 내 "계정 설정" 또는 운영자 이메일(healinlee8010@gmail.com)로 요청하시면 본인 확인 후 지체 없이 조치합니다.</p>
+                <p>권리 행사는 서비스 내 "계정 설정" 또는 개인정보관리책임자 이메일(educere8010@gmail.com)로 요청하시면 본인 확인 후 지체 없이 조치합니다.</p>
 
                 <h4>제7조 (쿠키의 사용)</h4>
                 <p>서비스는 로그인 상태 유지, 이용자 편의 제공을 위해 쿠키를 사용합니다. 이용자는 브라우저 설정에서 쿠키 저장을 거부할 수 있으나, 이 경우 로그인 유지 등 일부 기능 이용에 제한이 있을 수 있습니다.</p>
@@ -996,9 +1018,9 @@
 
                 <h4>제10조 (개인정보 보호책임자)</h4>
                 <ul>
-                    <li>성명: [추후 확정 — 사업자등록 완료 시 기재]</li>
+                    <li>성명: 이혜린</li>
                     <li>직책: 개인정보 보호책임자</li>
-                    <li>이메일: healinlee8010@gmail.com</li>
+                    <li>이메일: educere8010@gmail.com</li>
                 </ul>
                 <p>기타 개인정보 침해 관련 상담은 아래 기관에 문의하실 수 있습니다.</p>
                 <ul>
@@ -1011,8 +1033,8 @@
                 <p>본 방침은 법령·정책 또는 보안기술의 변경에 따라 내용이 변경될 수 있으며, 변경 시 서비스 내 공지사항을 통해 고지합니다. 중요한 변경은 시행일 7일 전부터 고지합니다.</p>
 
                 <p style="color:var(--text-light);font-size:0.85rem;margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb;">
-                    <b>시행일자:</b> [추후 확정 — 실제 상용 서비스 개시일]<br>
-                    <b>최종 수정일:</b> 2026-04-22 (초안)
+                    <b>시행일자:</b> 2026년 4월 23일<br>
+                    <b>최종 수정일:</b> 2026년 4월 23일
                 </p>
             </div>
         </div>
