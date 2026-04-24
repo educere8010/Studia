@@ -881,6 +881,22 @@
             0%,80%,100%{opacity:0.3;transform:scale(0.8);}
             40%{opacity:1;transform:scale(1.1);}
         }
+        /* 진행률 바 — 스트리밍 중 활성화, 평소엔 display:none */
+        .loading-progress{
+            width:220px;max-width:80vw;height:6px;margin-top:6px;
+            background:rgba(46,117,182,0.12);border-radius:999px;overflow:hidden;
+            display:none;
+        }
+        .loading-progress.active{display:block;}
+        .loading-progress-bar{
+            height:100%;width:0%;
+            background:linear-gradient(90deg, var(--blue-light,#5B8DC8) 0%, var(--navy,#2E75B6) 100%);
+            border-radius:999px;transition:width 0.25s ease-out;
+        }
+        .loading-progress-bar.done{
+            width:100% !important;
+            transition:width 0.35s ease-out;
+        }
 
         /* ───────── Image Editor Modal (크롭/회전) ───────── */
         .imgedit-modal{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10000;display:none;flex-direction:column;touch-action:none;}
@@ -3006,6 +3022,106 @@ function _studiaAiProxyUrl(){ return SUPABASE_URL+'/functions/v1/ai-proxy'; }
 window.Studia=window.Studia||{};
 window.Studia._ctx=window.Studia._ctx||{subject:null,feature:null};
 
+// SSE(서버 전송 이벤트) 스트림을 읽어 누적 텍스트를 완성하는 헬퍼.
+// - res.body 에서 청크 단위로 읽어, "\n\n" 으로 구분되는 이벤트 블록을 파싱.
+// - Anthropic 표준: content_block_delta 의 text_delta 가 부분 텍스트.
+// - 부분 텍스트가 추가될 때마다 onProgress(fullTextSoFar, deltaText) 호출.
+// - 최종 텍스트를 resolve.
+function _consumeAnthropicSse(res, opts, timer, onFinalUsage){
+    var reader = res.body && res.body.getReader && res.body.getReader();
+    if(!reader){
+        // 브라우저가 스트림을 지원 안 하는 드문 경우 → 전체 텍스트로 fallback
+        return res.text().then(function(txt){
+            clearTimeout(timer);
+            // 이벤트 스트림을 한 번에 파싱
+            var full = _parseSseTextAll(txt, opts, onFinalUsage);
+            if(!full || !full.trim()) throw apiError('EMPTY');
+            return full;
+        });
+    }
+    var decoder = new TextDecoder();
+    var buf = '';
+    var full = '';
+    var stoppedByFilter = false;
+
+    function handleBlock(block){
+        var lines = block.split('\n');
+        var dataLine = '';
+        for(var i=0;i<lines.length;i++){
+            if(lines[i].indexOf('data:')===0){ dataLine = lines[i].slice(5).trim(); break; }
+        }
+        if(!dataLine || dataLine==='[DONE]') return;
+        var obj;
+        try{ obj = JSON.parse(dataLine); }catch(e){ return; }
+        var t = obj.type;
+        if(t==='content_block_delta' && obj.delta && obj.delta.type==='text_delta'){
+            var d = obj.delta.text || '';
+            if(d){
+                full += d;
+                if(typeof opts.onProgress==='function'){
+                    try{ opts.onProgress(full, d); }catch(e){}
+                }
+            }
+        } else if(t==='message_delta' && obj.delta){
+            if(obj.delta.stop_reason==='content_filter') stoppedByFilter = true;
+            if(obj.usage && typeof onFinalUsage==='function') onFinalUsage(obj.usage);
+        } else if(t==='message_start' && obj.message && obj.message.usage){
+            if(typeof onFinalUsage==='function') onFinalUsage(obj.message.usage);
+        }
+    }
+
+    function pump(){
+        return reader.read().then(function(r){
+            if(r.done){
+                // 남은 버퍼 flush
+                if(buf.trim().length>0) handleBlock(buf);
+                clearTimeout(timer);
+                if(stoppedByFilter && !full) throw apiError('BLOCKED');
+                if(!full || !full.trim()) throw apiError('EMPTY');
+                return full;
+            }
+            buf += decoder.decode(r.value, {stream:true});
+            var idx;
+            while((idx = buf.indexOf('\n\n')) !== -1){
+                var block = buf.slice(0, idx);
+                buf = buf.slice(idx+2);
+                handleBlock(block);
+            }
+            return pump();
+        });
+    }
+    return pump();
+}
+
+// 스트림을 청크로 못 받는 환경(fallback): 전체 SSE 텍스트를 한 번에 파싱.
+function _parseSseTextAll(txt, opts, onFinalUsage){
+    var full = '';
+    var blocks = txt.split('\n\n');
+    for(var i=0;i<blocks.length;i++){
+        var lines = blocks[i].split('\n');
+        var dataLine = '';
+        for(var j=0;j<lines.length;j++){
+            if(lines[j].indexOf('data:')===0){ dataLine = lines[j].slice(5).trim(); break; }
+        }
+        if(!dataLine || dataLine==='[DONE]') continue;
+        var obj;
+        try{ obj = JSON.parse(dataLine); }catch(e){ continue; }
+        if(obj.type==='content_block_delta' && obj.delta && obj.delta.type==='text_delta'){
+            var d = obj.delta.text || '';
+            if(d){
+                full += d;
+                if(typeof opts.onProgress==='function'){
+                    try{ opts.onProgress(full, d); }catch(e){}
+                }
+            }
+        } else if((obj.type==='message_delta'||obj.type==='message_start') && typeof onFinalUsage==='function'){
+            var u = obj.usage || (obj.message && obj.message.usage);
+            if(u) onFinalUsage(u);
+        }
+    }
+    return full;
+}
+
 function callAPI(system,messages,maxTokens,opts){
     opts=opts||{};
 
@@ -3034,6 +3150,32 @@ function callAPI(system,messages,maxTokens,opts){
     var controller=(typeof AbortController!=='undefined')?new AbortController():null;
     var timer=setTimeout(function(){if(controller) controller.abort();},REQUEST_TIMEOUT_MS);
 
+    // opts.overlay: loading-overlay 의 id(string) 또는 element.
+    // 지정하면 자동으로 스트리밍 + Studia.LoadingProgress 에 진행률 바인딩.
+    var overlayEl = null;
+    if(opts.overlay){
+        overlayEl = (typeof opts.overlay==='string') ? document.getElementById(opts.overlay) : opts.overlay;
+    }
+    // 스트리밍 사용 여부: onProgress 콜백 또는 overlay 가 있으면 자동 활성화.
+    // opts.stream 을 명시적으로 false 로 주면 비활성화도 가능.
+    var useStream = (opts.stream === true)
+        || (typeof opts.onProgress==='function' && opts.stream!==false)
+        || (!!overlayEl && opts.stream!==false);
+
+    // overlay 자동 바인딩: onProgress 가 없으면 진행률 바만, 있으면 사용자 콜백 + 진행률 바 둘 다.
+    if(overlayEl && window.Studia && window.Studia.LoadingProgress){
+        var userOnProgress = opts.onProgress;
+        try{ window.Studia.LoadingProgress.start(overlayEl); }catch(_e){}
+        opts = Object.assign({}, opts, {
+            onProgress: function(full, delta){
+                try{ window.Studia.LoadingProgress.tick(overlayEl, (full||'').length); }catch(_e){}
+                if(typeof userOnProgress==='function'){
+                    try{ userOnProgress(full, delta); }catch(_e){}
+                }
+            }
+        });
+    }
+
     // 세션 JWT 확보 → Edge Function 호출
     return sb.auth.getSession().then(function(sessRes){
         var session=sessRes&&sessRes.data&&sessRes.data.session;
@@ -3049,6 +3191,7 @@ function callAPI(system,messages,maxTokens,opts){
             subject:opts.subject||ctx.subject||null,
             feature:opts.feature||ctx.feature||null
         };
+        if(useStream) body.stream = true;
         return fetch(_studiaAiProxyUrl(),{
             method:'POST',
             headers:{
@@ -3060,8 +3203,8 @@ function callAPI(system,messages,maxTokens,opts){
             signal:controller?controller.signal:undefined
         });
     }).then(function(res){
-        clearTimeout(timer);
         if(!res.ok){
+            clearTimeout(timer);
             var status=res.status;
             return res.json().catch(function(){return {};}).then(function(e){
                 var detail=(e&&e.error&&(typeof e.error==='object'?e.error.message:e.error))||(e&&e.message)||'';
@@ -3079,18 +3222,26 @@ function callAPI(system,messages,maxTokens,opts){
                 throw apiError('UNKNOWN','HTTP '+status+': '+detail);
             });
         }
-        return res.json();
-    }).then(function(data){
-        if(!data||!data.content||!data.content.length){
-            if(data && data.stop_reason==='content_filter') throw apiError('BLOCKED');
-            throw apiError('EMPTY');
+        if(useStream){
+            // SSE 스트림 읽기 (타이머는 스트림 내부에서 해제)
+            return _consumeAnthropicSse(res, opts, timer);
         }
-        var text=data.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join('');
-        if(!text || !text.trim()) throw apiError('EMPTY');
-        return text;
+        clearTimeout(timer);
+        return res.json().then(function(data){
+            if(!data||!data.content||!data.content.length){
+                if(data && data.stop_reason==='content_filter') throw apiError('BLOCKED');
+                throw apiError('EMPTY');
+            }
+            var text=data.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join('');
+            if(!text || !text.trim()) throw apiError('EMPTY');
+            return text;
+        });
     }).catch(function(err){
         clearTimeout(timer);
         _reqInflight=Math.max(0,_reqInflight-1);
+        if(overlayEl && window.Studia && window.Studia.LoadingProgress){
+            try{ window.Studia.LoadingProgress.reset(overlayEl); }catch(_e){}
+        }
         var finalErr;
         if(err && err.code){ finalErr=err; }
         else if(err && err.name==='AbortError'){ finalErr=apiError('TIMEOUT'); }
@@ -3107,6 +3258,9 @@ function callAPI(system,messages,maxTokens,opts){
         throw finalErr;
     }).then(function(v){
         _reqInflight=Math.max(0,_reqInflight-1);
+        if(overlayEl && window.Studia && window.Studia.LoadingProgress){
+            try{ window.Studia.LoadingProgress.done(overlayEl); }catch(_e){}
+        }
         try{window.Studia && window.Studia.track && window.Studia.track('api_success',{bytes:(v&&v.length)||0});}catch(e){}
         return v;
     });
@@ -4051,7 +4205,7 @@ var MathAnalysis={
     _call:function(content,hasRef){
         var self=this;
         var sysPrompt=hasRef?this.SYSTEM_PROMPT+'\n\n추가 원칙: 학생 문제에 [참고자료]가 포함된 경우, 해당 자료의 개념과 공식을 우선 활용해서 풀이를 구성해.':this.SYSTEM_PROMPT;
-        callAPI(sysPrompt,[{role:'user',content:content}]).then(function(response){
+        callAPI(sysPrompt,[{role:'user',content:content}],null,{overlay:'mathLoading'}).then(function(response){
             document.getElementById('mathLoading').classList.add('hidden');
             self.parseAndRender(response);
         }).catch(function(err){
@@ -4281,7 +4435,7 @@ var MathConcept={
                 var refText=findJokboText(data,unit);
                 if(refText){
                     prompt+='\n\n[참고자료]\n'+refText.substring(0,6000);
-                    callAPI(self.SYSTEM_PROMPT_REF,[{role:'user',content:prompt}],16000).then(function(response){
+                    callAPI(self.SYSTEM_PROMPT_REF,[{role:'user',content:prompt}],16000,{overlay:'mathConceptLoading'}).then(function(response){
                         document.getElementById('mathConceptLoading').classList.add('hidden');
                         self.parseAndRender(response);
                     }).catch(function(err){
@@ -4297,7 +4451,7 @@ var MathConcept={
     },
     _fallback:function(prompt){
         var self=this;
-        callAPI(this.SYSTEM_PROMPT,[{role:'user',content:prompt}],16000).then(function(response){
+        callAPI(this.SYSTEM_PROMPT,[{role:'user',content:prompt}],16000,{overlay:'mathConceptLoading'}).then(function(response){
             document.getElementById('mathConceptLoading').classList.add('hidden');
             self.parseAndRender(response);
         }).catch(function(err){
@@ -4550,7 +4704,7 @@ var EngGrammar={
                 var refText=findJokboText(data,unit);
                 if(refText){
                     prompt+='\n\n[참고자료]\n'+refText.substring(0,6000);
-                    callAPI(self.SYSTEM_PROMPT_REF,[{role:'user',content:prompt}],16000).then(function(response){
+                    callAPI(self.SYSTEM_PROMPT_REF,[{role:'user',content:prompt}],16000,{overlay:'engGrammarLoading'}).then(function(response){
                         document.getElementById('engGrammarLoading').classList.add('hidden');
                         self.parseAndRender(response);
                     }).catch(function(err){
@@ -4566,7 +4720,7 @@ var EngGrammar={
     },
     _analyzeFallback:function(prompt){
         var self=this;
-        callAPI(this.SYSTEM_PROMPT,[{role:'user',content:prompt}],16000).then(function(response){
+        callAPI(this.SYSTEM_PROMPT,[{role:'user',content:prompt}],16000,{overlay:'engGrammarLoading'}).then(function(response){
             document.getElementById('engGrammarLoading').classList.add('hidden');
             self.parseAndRender(response);
         }).catch(function(err){
@@ -4844,7 +4998,7 @@ var EngAnalysis={
 
     _call:function(content){
         var self=this;
-        callAPI(this.SYSTEM_PROMPT,[{role:'user',content:content}],16000).then(function(response){
+        callAPI(this.SYSTEM_PROMPT,[{role:'user',content:content}],16000,{overlay:'engLoading'}).then(function(response){
             document.getElementById('engLoading').classList.add('hidden');
             self.parseAndRender(response);
         }).catch(function(err){
@@ -5196,7 +5350,7 @@ var KorGrammar={
                 var refText=findJokboText(data,unit);
                 if(refText){
                     prompt+='\n\n[참고자료]\n'+refText.substring(0,6000);
-                    callAPI(self.SYSTEM_PROMPT_REF,[{role:'user',content:prompt}],16000).then(function(response){
+                    callAPI(self.SYSTEM_PROMPT_REF,[{role:'user',content:prompt}],16000,{overlay:'korGrammarLoading'}).then(function(response){
                         document.getElementById('korGrammarLoading').classList.add('hidden');
                         self.parseAndRender(response);
                     }).catch(function(err){
@@ -5213,7 +5367,7 @@ var KorGrammar={
     },
     _analyzeFallback:function(prompt){
         var self=this;
-        callAPI(this.SYSTEM_PROMPT,[{role:'user',content:prompt}],16000).then(function(response){
+        callAPI(this.SYSTEM_PROMPT,[{role:'user',content:prompt}],16000,{overlay:'korGrammarLoading'}).then(function(response){
             document.getElementById('korGrammarLoading').classList.add('hidden');
             self.parseAndRender(response);
         }).catch(function(err){
@@ -5687,7 +5841,7 @@ var KorAnalysis={
         var self=this;
         var prompt=this.SYSTEM_PROMPTS[this.currentType]||this.SYSTEM_PROMPTS['비문학'];
         if(hasRef) prompt+='\n\n추가 원칙: [참고자료 - Studia 분석자료]가 포함된 경우:\n1. 참고자료 안에 원문(시 본문, 소설 본문, 고전 원문 등)이 포함되어 있으면 반드시 추출하여 "original" 필드에 넣어야 해. 원문이 분석 내용 사이에 인용되어 있더라도 찾아서 재구성해줘.\n2. 해당 자료의 분석 내용을 우선 참고하여 더 정확하고 심층적인 분석을 제공해.\n3. "original" 필드는 절대 비워두지 마. 참고자료에서 원문을 최대한 추출해서 넣어줘.';
-        callAPI(prompt,[{role:'user',content:content}],16000).then(function(response){
+        callAPI(prompt,[{role:'user',content:content}],16000,{overlay:'korLoading'}).then(function(response){
             document.getElementById('korLoading').classList.add('hidden');
             self.lastResponse=response||'';
             self.parseAndRender(response);
@@ -6238,7 +6392,7 @@ var ProblemSolve={
         var n=imgs.length;
 
         var finalize=function(userContent){
-            callAPI(self.SYSTEM_PROMPT,[{role:'user',content:userContent}],4000).then(function(response){
+            callAPI(self.SYSTEM_PROMPT,[{role:'user',content:userContent}],4000,{overlay:'probLoading'}).then(function(response){
                 document.getElementById('probLoading').classList.add('hidden');
                 self.parseAndRender(response);
             }).catch(function(err){
@@ -6498,7 +6652,7 @@ var SocAnalysis={
                 if(unit) textPrompt+='단원명: '+unit+'\n';
                 if(content) textPrompt+='추가 내용:\n'+content;
                 msgContent.push({type:'text',text:textPrompt});
-                callAPI(self.SYSTEM_PROMPT,[{role:'user',content:msgContent}],16000).then(function(response){
+                callAPI(self.SYSTEM_PROMPT,[{role:'user',content:msgContent}],16000,{overlay:'socLoading'}).then(function(response){
                     document.getElementById('socLoading').classList.add('hidden');
                     self.parseAndRender(response);
                 }).catch(function(err){
@@ -6525,7 +6679,7 @@ var SocAnalysis={
                     prompt+='단원명: '+unit;
                     if(content) prompt+='\n\n핵심 내용:\n'+content;
                     prompt+='\n\n[참고자료]\n'+refText.substring(0,6000);
-                    callAPI(self.SYSTEM_PROMPT_REF,[{role:'user',content:prompt}],16000).then(function(response){
+                    callAPI(self.SYSTEM_PROMPT_REF,[{role:'user',content:prompt}],16000,{overlay:'socLoading'}).then(function(response){
                         document.getElementById('socLoading').classList.add('hidden');
                         self.parseAndRender(response);
                     }).catch(function(err){
@@ -6553,7 +6707,7 @@ var SocAnalysis={
         if(content) prompt+='\n\n핵심 내용:\n'+content;
 
         var self=this;
-        callAPI(this.SYSTEM_PROMPT,[{role:'user',content:prompt}],16000).then(function(response){
+        callAPI(this.SYSTEM_PROMPT,[{role:'user',content:prompt}],16000,{overlay:'socLoading'}).then(function(response){
             document.getElementById('socLoading').classList.add('hidden');
             self.parseAndRender(response);
         }).catch(function(err){
@@ -7108,7 +7262,7 @@ var SciConcept={
             // 족보에 없으면 AI 검색
             document.getElementById('sciConceptLoading').classList.remove('hidden');
             document.getElementById('sciConceptList').innerHTML='';
-            callAPI(this.SYSTEM_SEARCH,[{role:'user',content:[{type:'text',text:'"'+query+'" 관련 과학 개념을 검색해줘.'}]}]).then(function(response){
+            callAPI(this.SYSTEM_SEARCH,[{role:'user',content:[{type:'text',text:'"'+query+'" 관련 과학 개념을 검색해줘.'}]}],null,{overlay:'sciConceptLoading'}).then(function(response){
                 document.getElementById('sciConceptLoading').classList.add('hidden');
                 var data=self._parseJSON(response);
                 if(data&&data.concepts){
@@ -7149,7 +7303,7 @@ var SciConcept={
                 if(refText){
                     // 참고자료가 있으면 프롬프트에 포함 → 정확한 답변
                     var userMsg=sub+' 과목의 "'+conceptName+'" 개념을 상세하게 설명해줘.\n\n[참고자료]\n'+refText.substring(0,6000);
-                    callAPI(self.SYSTEM_DETAIL,[{role:'user',content:[{type:'text',text:userMsg}]}],16000).then(function(response){
+                    callAPI(self.SYSTEM_DETAIL,[{role:'user',content:[{type:'text',text:userMsg}]}],16000,{overlay:'sciDetailLoading'}).then(function(response){
                         document.getElementById('sciDetailLoading').classList.add('hidden');
                         var data=self._parseJSON(response);
                         if(data){ self._renderDetail(data); }
@@ -7172,7 +7326,7 @@ var SciConcept={
     // 족보 데이터 없을 때 기존 방식으로 폴백
     _loadDetailFallback:function(sub,conceptName){
         var self=this;
-        callAPI(this.SYSTEM_DETAIL_NO_DATA,[{role:'user',content:[{type:'text',text:sub+' 과목의 "'+conceptName+'" 개념을 상세하게 설명해줘.'}]}],16000).then(function(response){
+        callAPI(this.SYSTEM_DETAIL_NO_DATA,[{role:'user',content:[{type:'text',text:sub+' 과목의 "'+conceptName+'" 개념을 상세하게 설명해줘.'}]}],16000,{overlay:'sciDetailLoading'}).then(function(response){
             document.getElementById('sciDetailLoading').classList.add('hidden');
             var data=self._parseJSON(response);
             if(data){ self._renderDetail(data); }
@@ -7440,7 +7594,8 @@ document.getElementById('sciConceptBack').addEventListener('click',function(){sh
         showScreen('screenSciDetail');
         document.getElementById('sciDetailTitle').textContent='사진 분석';
         var detailDiv=document.getElementById('sciTab1');
-        detailDiv.innerHTML='<div class="loading-overlay"><div class="spinner"></div><p>AI가 사진을 분석하고 있어요...</p></div>';
+        detailDiv.innerHTML='<div class="loading-overlay" id="sciPhotoAnalysisLoading"><div class="spinner"></div><p>AI가 사진을 분석하고 있어요...</p></div>';
+        var _sciPhotoOverlay = detailDiv.querySelector('.loading-overlay');
         // Hide quiz and exam tabs for photo analysis
         document.getElementById('sciDetailTabs').style.display='none';
 
@@ -7456,7 +7611,7 @@ document.getElementById('sciConceptBack').addEventListener('click',function(){sh
 
             var sysPrompt='너는 Studia의 과학 AI 과외선생님이야.\n사진에 있는 과학 내용을 분석하고 학생에게 쉽게 설명해줘.\n\n원칙:\n1. 사진의 내용을 정확히 읽고 분석해.\n2. 관련 개념을 쉬운 말로 설명해.\n3. 수식이 있으면 LaTeX로 표시 ($...$).\n4. 시험 출제 포인트도 알려줘.\n5. 친근한 반말, 이모지 적절히.';
 
-            callAPI(sysPrompt,[{role:'user',content:msgContent}],16000).then(function(response){
+            callAPI(sysPrompt,[{role:'user',content:msgContent}],16000,{overlay:_sciPhotoOverlay}).then(function(response){
                 detailDiv.innerHTML='<div style="white-space:pre-wrap;line-height:1.8;font-size:14px;padding:16px;">'+escHtml(response).replace(/\n/g,'<br>')+'</div>';
                 if(typeof renderKaTeX==='function') renderKaTeX(detailDiv);
             }).catch(function(err){
@@ -7663,7 +7818,7 @@ var SciQuiz={
         var prompt=subject+(topic?' - '+topic:'')+' 과목 퀴즈 5문제를 만들어줘.';
         var self=this;
 
-        callAPI(this.SYSTEM_QUIZ,[{role:'user',content:[{type:'text',text:prompt}]}],16000).then(function(response){
+        callAPI(this.SYSTEM_QUIZ,[{role:'user',content:[{type:'text',text:prompt}]}],16000,{overlay:'sciQuizLoading'}).then(function(response){
             document.getElementById('sciQuizLoading').classList.add('hidden');
             var data=self._parseJSON(response);
             if(data&&data.questions){
@@ -7884,7 +8039,7 @@ var SciExam={
         var prompt=subject+(topic?' - '+topic:'')+' 과목 수능·학평 5문제를 만들어줘.';
         var self=this;
 
-        callAPI(this.SYSTEM_EXAM,[{role:'user',content:[{type:'text',text:prompt}]}],16000).then(function(response){
+        callAPI(this.SYSTEM_EXAM,[{role:'user',content:[{type:'text',text:prompt}]}],16000,{overlay:'sciExamLoading'}).then(function(response){
             document.getElementById('sciExamLoading').classList.add('hidden');
             var data=self._parseJSON(response);
             if(data&&data.questions){
@@ -8151,7 +8306,7 @@ function createQuizModule(cfg){
             document.getElementById(cfg.loadingId).classList.remove('hidden');
             var prompt=subject+(topic?' - '+topic:'')+' '+cfg.promptSuffix;
             var self=this;
-            callAPI(cfg.systemPrompt,[{role:'user',content:[{type:'text',text:prompt}]}],16000).then(function(response){
+            callAPI(cfg.systemPrompt,[{role:'user',content:[{type:'text',text:prompt}]}],16000,{overlay:cfg.loadingId}).then(function(response){
                 document.getElementById(cfg.loadingId).classList.add('hidden');
                 var data=_quizParseJSON(response);
                 if(data&&data.questions){
@@ -8603,7 +8758,7 @@ var HisAnalysis={
                 if(unit) textPrompt+='단원명: '+unit+'\n';
                 if(extra) textPrompt+='추가 내용:\n'+extra;
                 msgContent.push({type:'text',text:textPrompt});
-                callAPI(self.SYSTEM_PROMPT,[{role:'user',content:msgContent}],16000).then(function(response){
+                callAPI(self.SYSTEM_PROMPT,[{role:'user',content:msgContent}],16000,{overlay:'hisLoading'}).then(function(response){
                     document.getElementById('hisLoading').classList.add('hidden');
                     self.parseAndRender(response);
                 }).catch(function(err){
@@ -8629,7 +8784,7 @@ var HisAnalysis={
                     var prompt='과목: '+(subject||'한국사')+'\n학년: '+(grade||'고1')+'\n단원명: '+unit;
                     if(extra) prompt+='\n\n추가 내용:\n'+extra;
                     prompt+='\n\n[참고자료]\n'+refText.substring(0,6000);
-                    callAPI(self.SYSTEM_PROMPT_REF,[{role:'user',content:prompt}],16000).then(function(response){
+                    callAPI(self.SYSTEM_PROMPT_REF,[{role:'user',content:prompt}],16000,{overlay:'hisLoading'}).then(function(response){
                         document.getElementById('hisLoading').classList.add('hidden');
                         self.parseAndRender(response);
                     }).catch(function(err){
@@ -8654,7 +8809,7 @@ var HisAnalysis={
         prompt+='\n\n이 단원의 학습 자료를 JSON으로 만들어줘.';
 
         var self=this;
-        callAPI(this.SYSTEM_PROMPT,[{role:'user',content:[{type:'text',text:prompt}]}],16000).then(function(response){
+        callAPI(this.SYSTEM_PROMPT,[{role:'user',content:[{type:'text',text:prompt}]}],16000,{overlay:'hisLoading'}).then(function(response){
             document.getElementById('hisLoading').classList.add('hidden');
             self.parseAndRender(response);
         }).catch(function(err){
@@ -9742,6 +9897,37 @@ var Chat={
         this.scrollBottom(area);
     },
 
+    // 스트리밍 버전: 빈 말풍선을 먼저 달고, update(fullText) 로 본문을 점진 갱신.
+    // 완료 시 finalize(fullText) 를 호출하면 KaTeX 수식까지 렌더.
+    addAIStreaming:function(area){
+        var self=this;
+        var w=document.createElement('div');
+        w.className='msg msg-ai msg-ai-streaming';
+        w.innerHTML='<div class="msg-ai-row"><div class="msg-avatar">S</div><div class="msg-bubble"></div></div><div class="msg-time">'+timeStr()+'</div>';
+        var bubble = w.querySelector('.msg-bubble');
+        area.appendChild(w);
+        this.scrollBottom(area);
+        var lastLen=0;
+        return {
+            element:w,
+            update:function(fullText){
+                // 스트리밍 중엔 textContent 로만 세팅(깜빡임 방지, KaTeX 렌더는 완료 시 한 번).
+                var clean = stripMarkdown(fullText||'');
+                if(clean.length!==lastLen){
+                    bubble.textContent = clean;
+                    lastLen=clean.length;
+                    self.scrollBottom(area);
+                }
+            },
+            finalize:function(fullText){
+                w.classList.remove('msg-ai-streaming');
+                bubble.innerHTML = escHtml(stripMarkdown(fullText||''));
+                renderKaTeX(w);
+                self.scrollBottom(area);
+            }
+        };
+    },
+
     addError:function(area,text){
         var self=this;
         var w=document.createElement('div');
@@ -9814,12 +10000,34 @@ var Chat={
 
         var sys=this.SYSTEMS[this.subject]||this.SYSTEMS.math;
 
-        callAPI(sys,this.messages).then(function(reply){
+        // 스트리밍으로 첫 글자가 올 때 말풍선을 만든다(그 전엔 typing 유지).
+        var streamBubble=null;
+
+        callAPI(sys,this.messages,null,{
+            subject:this.subject,
+            feature:'chat',
+            onProgress:function(fullText,_delta){
+                if(!streamBubble){
+                    typing.classList.remove('visible');
+                    streamBubble = self.addAIStreaming(area);
+                }
+                streamBubble.update(fullText);
+            }
+        }).then(function(reply){
             typing.classList.remove('visible');
             self.messages.push({role:'assistant',content:reply});
-            self.addAI(area,reply);
+            if(streamBubble){
+                streamBubble.finalize(reply);
+            } else {
+                // 스트리밍 청크가 한 번도 안 왔을 경우 fallback
+                self.addAI(area,reply);
+            }
         }).catch(function(err){
             typing.classList.remove('visible');
+            // 스트리밍 중이던 말풍선은 실패 시 제거 (그래야 오류 말풍선과 혼동 X)
+            if(streamBubble && streamBubble.element && streamBubble.element.parentNode){
+                streamBubble.element.parentNode.removeChild(streamBubble.element);
+            }
             if(self.messages.length&&self.messages[self.messages.length-1].role==='user') self.messages.pop();
             // 고도화된 callAPI가 이미 사용자 친화적 메시지를 담아 던져줌
             var msg=(err&&err.message)?err.message:'잠시 문제가 생겼어 😥 다시 시도해줄래?';
@@ -10054,6 +10262,14 @@ var Chat={
         tip.textContent = '';
         overlay.appendChild(tip);
 
+        // 진행률 바 (기본 숨김 — Studia.LoadingProgress.start 시 활성)
+        var prog = document.createElement('div');
+        prog.className = 'loading-progress';
+        var bar = document.createElement('div');
+        bar.className = 'loading-progress-bar';
+        prog.appendChild(bar);
+        overlay.appendChild(prog);
+
         overlay._lmReady = true;
     }
 
@@ -10171,6 +10387,59 @@ var Chat={
             bodyObs.observe(document.body, {childList:true, subtree:true});
         });
     }
+
+    // ── 스트리밍 진행률 바 외부 API ──
+    // 사용법:
+    //   var ov = document.getElementById('mathLoadingOverlay');
+    //   Studia.LoadingProgress.start(ov);
+    //   callAPI(sys, msgs, 16000, {
+    //       onProgress: function(full){ Studia.LoadingProgress.tick(ov, full.length); }
+    //   }).finally(function(){ Studia.LoadingProgress.done(ov); });
+    function _getBar(overlay){
+        if(!overlay) return null;
+        ensureStructure(overlay);
+        return overlay.querySelector('.loading-progress-bar');
+    }
+    function _getProg(overlay){
+        if(!overlay) return null;
+        ensureStructure(overlay);
+        return overlay.querySelector('.loading-progress');
+    }
+    window.Studia = window.Studia || {};
+    window.Studia.LoadingProgress = {
+        // 진행률 바 표시 시작 (0%로 리셋)
+        start: function(overlay){
+            var prog = _getProg(overlay); var bar = _getBar(overlay);
+            if(!prog || !bar) return;
+            bar.classList.remove('done');
+            bar.style.width = '0%';
+            prog.classList.add('active');
+        },
+        // chars: 현재까지 받은 글자 수. 내부적으로 비율 환산(점근 95%).
+        tick: function(overlay, chars){
+            var bar = _getBar(overlay);
+            if(!bar) return;
+            var n = Math.max(0, Number(chars)||0);
+            // 1 - e^(-n/1500) 곡선: 0→0%, 500→28%, 1500→63%, 3000→86%, 5000→96%
+            var ratio = 1 - Math.exp(-n / 1500);
+            if(ratio > 0.95) ratio = 0.95;
+            bar.style.width = (ratio * 100).toFixed(1) + '%';
+        },
+        // 완료 — 100% 로 채우고 잠시 후 숨김 처리는 overlay 자체가 hidden 되므로 별도 불필요.
+        done: function(overlay){
+            var prog = _getProg(overlay); var bar = _getBar(overlay);
+            if(!prog || !bar) return;
+            bar.classList.add('done');
+        },
+        // 초기화(숨김)
+        reset: function(overlay){
+            var prog = _getProg(overlay); var bar = _getBar(overlay);
+            if(!prog || !bar) return;
+            bar.classList.remove('done');
+            bar.style.width = '0%';
+            prog.classList.remove('active');
+        }
+    };
 })();
 </script>
 
