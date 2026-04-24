@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>스터디아 관리자</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  font-family:'Plus Jakarta Sans','Noto Sans KR',sans-serif;
+  background:#FAFBFC;color:#1A0F5C;
+  font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;
+}
+a{color:#4A40E0;text-decoration:none;}
+a:hover{text-decoration:underline;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+input,select,textarea{font-family:inherit;font-size:14px;}
+
+/* ──────────── LOGIN GATE ──────────── */
+#gate{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:#FAFBFC;z-index:1000;
+}
+#gate .box{
+  width:min(400px,92vw);background:#fff;border:1px solid #E5E7EB;border-radius:16px;
+  padding:36px 32px;box-shadow:0 2px 16px rgba(26,15,92,0.04);
+}
+#gate h1{font-size:1.4rem;letter-spacing:-0.02em;margin-bottom:6px;}
+#gate p.sub{color:#747779;font-size:0.85rem;margin-bottom:24px;}
+#gate label{display:block;font-size:0.8rem;color:#595C5E;margin-bottom:6px;margin-top:14px;font-weight:600;}
+#gate input{
+  width:100%;padding:11px 14px;border:1px solid #D9DDE0;border-radius:10px;
+  background:#FAFBFC;color:#1A0F5C;transition:border-color .15s;
+}
+#gate input:focus{outline:none;border-color:#4A40E0;background:#fff;}
+#gate .btn{
+  width:100%;margin-top:22px;padding:12px;border-radius:10px;
+  background:#1A0F5C;color:#fff;font-weight:700;font-size:0.95rem;
+  transition:opacity .15s;
+}
+#gate .btn:hover{opacity:0.9;}
+#gate .btn:disabled{opacity:0.5;cursor:not-allowed;}
+#gate .msg{margin-top:14px;padding:10px 12px;border-radius:8px;font-size:0.82rem;display:none;}
+#gate .msg.err{background:#FFEFEF;color:#B41340;display:block;}
+#gate .msg.info{background:#EEF0FF;color:#4A40E0;display:block;}
+
+/* ──────────── APP LAYOUT ──────────── */
+#app{display:none;min-height:100vh;}
+#app.ready{display:grid;grid-template-columns:220px 1fr;grid-template-rows:56px 1fr;}
+header{
+  grid-column:1/3;grid-row:1;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;background:#fff;border-bottom:1px solid #E5E7EB;
+}
+header .brand{font-weight:800;font-size:1rem;letter-spacing:-0.02em;}
+header .brand .tag{margin-left:8px;font-size:0.7rem;padding:2px 7px;background:#1A0F5C;color:#fff;border-radius:4px;letter-spacing:0.04em;}
+header .who{font-size:0.82rem;color:#595C5E;}
+header .who strong{color:#1A0F5C;margin-right:10px;}
+header .who button{font-size:0.78rem;color:#4A40E0;}
+
+aside{
+  grid-column:1;grid-row:2;
+  background:#fff;border-right:1px solid #E5E7EB;padding:18px 12px;
+}
+aside .nav-item{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 12px;border-radius:8px;font-size:0.88rem;font-weight:600;
+  color:#595C5E;cursor:pointer;transition:background .12s,color .12s;
+  margin-bottom:2px;
+}
+aside .nav-item:hover{background:#F4F1FF;color:#1A0F5C;}
+aside .nav-item.active{background:#EEF0FF;color:#1A0F5C;}
+aside .nav-item .ico{font-size:1rem;width:20px;text-align:center;}
+
+main{grid-column:2;grid-row:2;padding:28px 32px;overflow-x:hidden;}
+main h2.page{font-size:1.45rem;letter-spacing:-0.02em;margin-bottom:20px;font-weight:800;}
+main .hint{color:#747779;font-size:0.82rem;margin-bottom:18px;}
+
+/* ──────────── CARDS & STATS ──────────── */
+.card{background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:20px;margin-bottom:16px;}
+.card h3{font-size:0.9rem;color:#595C5E;font-weight:600;margin-bottom:10px;letter-spacing:-0.01em;}
+.card .big{font-size:1.7rem;font-weight:800;letter-spacing:-0.02em;color:#1A0F5C;}
+.card .sub{font-size:0.75rem;color:#747779;margin-top:4px;}
+
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:18px;}
+
+/* ──────────── TABLES ──────────── */
+table.data{
+  width:100%;border-collapse:collapse;background:#fff;
+  border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;font-size:0.83rem;
+}
+table.data th,table.data td{
+  padding:10px 12px;text-align:left;vertical-align:middle;
+  border-bottom:1px solid #F0F1F3;
+}
+table.data thead th{
+  background:#FAFBFC;font-weight:700;color:#595C5E;font-size:0.76rem;
+  text-transform:uppercase;letter-spacing:0.04em;
+}
+table.data tbody tr:last-child td{border-bottom:none;}
+table.data tbody tr:hover{background:#FAFBFC;}
+table.data .mono{font-family:'Plus Jakarta Sans',monospace;font-size:0.76rem;color:#747779;}
+table.data .rowact{color:#4A40E0;cursor:pointer;font-weight:600;font-size:0.78rem;margin-right:8px;}
+table.data .rowact.danger{color:#B41340;}
+table.data .rowact:hover{text-decoration:underline;}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:0.7rem;font-weight:700;letter-spacing:0.03em;}
+.badge.active{background:#DDF2E4;color:#006947;}
+.badge.trial{background:#EEF0FF;color:#4A40E0;}
+.badge.cancelled{background:#F5DFDF;color:#B41340;}
+.badge.past_due{background:#FFE6D1;color:#A86200;}
+.badge.expired,.badge.suspended{background:#E5E7EB;color:#595C5E;}
+.badge.needs_payment{background:#FFF3C9;color:#A86200;}
+
+/* ──────────── CONTROLS ──────────── */
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.toolbar input[type=text],.toolbar select{
+  padding:8px 12px;border:1px solid #D9DDE0;border-radius:8px;background:#fff;
+  color:#1A0F5C;min-width:160px;
+}
+.toolbar input[type=text]:focus,.toolbar select:focus{outline:none;border-color:#4A40E0;}
+.toolbar .btn{
+  padding:8px 14px;border-radius:8px;background:#1A0F5C;color:#fff;
+  font-size:0.83rem;font-weight:700;
+}
+.toolbar .btn.ghost{background:#fff;color:#1A0F5C;border:1px solid #D9DDE0;}
+.toolbar .btn:hover{opacity:0.9;}
+
+.pager{display:flex;gap:6px;align-items:center;margin-top:10px;font-size:0.82rem;color:#595C5E;}
+.pager button{
+  padding:5px 10px;border:1px solid #D9DDE0;border-radius:6px;background:#fff;
+  color:#1A0F5C;font-weight:600;
+}
+.pager button:disabled{opacity:0.4;cursor:not-allowed;}
+
+/* ──────────── DRAWER (사용자 상세) ──────────── */
+.drawer-backdrop{
+  position:fixed;inset:0;background:rgba(26,15,92,0.35);z-index:500;display:none;
+}
+.drawer-backdrop.on{display:block;}
+.drawer{
+  position:fixed;right:0;top:0;bottom:0;width:min(600px,95vw);background:#fff;
+  box-shadow:-8px 0 32px rgba(26,15,92,0.12);z-index:501;transform:translateX(100%);
+  transition:transform .22s ease-out;overflow-y:auto;
+}
+.drawer.on{transform:translateX(0);}
+.drawer .head{padding:18px 24px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:10;}
+.drawer .head h3{font-size:1.1rem;letter-spacing:-0.02em;}
+.drawer .body{padding:20px 24px;}
+.drawer .close{font-size:1.3rem;color:#747779;}
+.drawer .field{margin-bottom:12px;}
+.drawer .field label{font-size:0.72rem;color:#747779;text-transform:uppercase;letter-spacing:0.04em;font-weight:700;}
+.drawer .field .val{font-size:0.92rem;color:#1A0F5C;margin-top:2px;word-break:break-all;}
+
+/* ──────────── CHART (심플 바) ──────────── */
+.chart-row{display:flex;align-items:flex-end;gap:3px;height:90px;padding-bottom:4px;margin-top:8px;}
+.chart-bar{flex:1;background:#4A40E0;border-radius:3px 3px 0 0;min-height:2px;position:relative;transition:opacity .15s;}
+.chart-bar:hover{opacity:0.75;}
+.chart-bar.alt{background:#C8FFE0;}
+.chart-labels{display:flex;justify-content:space-between;font-size:0.65rem;color:#747779;margin-top:4px;padding:0 2px;}
+
+/* ──────────── MODAL (확인 다이얼로그) ──────────── */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(26,15,92,0.45);z-index:600;display:none;
+  align-items:center;justify-content:center;padding:20px;
+}
+.modal-backdrop.on{display:flex;}
+.modal{background:#fff;border-radius:14px;padding:24px;width:min(420px,95vw);box-shadow:0 12px 40px rgba(26,15,92,0.18);}
+.modal h4{font-size:1.05rem;letter-spacing:-0.02em;margin-bottom:8px;}
+.modal p{color:#595C5E;font-size:0.88rem;margin-bottom:14px;}
+.modal input[type=text],.modal input[type=number],.modal textarea,.modal select{
+  width:100%;padding:9px 12px;border:1px solid #D9DDE0;border-radius:8px;background:#FAFBFC;
+  color:#1A0F5C;margin-bottom:10px;
+}
+.modal textarea{min-height:70px;resize:vertical;}
+.modal .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;}
+.modal .btns button{padding:8px 14px;border-radius:8px;font-weight:700;font-size:0.85rem;}
+.modal .btns .cancel{background:#F0F1F3;color:#595C5E;}
+.modal .btns .ok{background:#1A0F5C;color:#fff;}
+.modal .btns .ok.danger{background:#B41340;}
+
+/* ──────────── TOAST ──────────── */
+#toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:#1A0F5C;color:#fff;padding:10px 18px;border-radius:24px;
+  font-size:0.85rem;font-weight:600;box-shadow:0 4px 20px rgba(26,15,92,0.28);
+  z-index:700;opacity:0;pointer-events:none;transition:opacity .18s;
+}
+#toast.on{opacity:1;}
+#toast.err{background:#B41340;}
+
+/* ──────────── STATE ──────────── */
+.loading{color:#747779;font-size:0.85rem;padding:14px 0;}
+.empty{color:#747779;font-size:0.85rem;padding:24px;text-align:center;}
+.muted{color:#747779;}
+
+@media (max-width: 900px){
+  #app.ready{grid-template-columns:1fr;grid-template-rows:56px auto 1fr;}
+  aside{grid-column:1;grid-row:2;border-right:none;border-bottom:1px solid #E5E7EB;padding:10px;display:flex;overflow-x:auto;gap:6px;}
+  aside .nav-item{flex:0 0 auto;margin-bottom:0;}
+  main{grid-column:1;grid-row:3;padding:20px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ──────────── LOGIN GATE ──────────── -->
+<div id="gate">
+  <div class="box">
+    <h1>스터디아 관리자</h1>
+    <p class="sub">관리자 계정으로 로그인하세요.</p>
+    <form id="loginForm">
+      <label for="em">이메일</label>
+      <input id="em" type="email" autocomplete="username" required>
+      <label for="pw">비밀번호</label>
+      <input id="pw" type="password" autocomplete="current-password" required>
+      <button class="btn" type="submit" id="loginBtn">로그인</button>
+      <div class="msg" id="gateMsg"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ──────────── APP ──────────── -->
+<div id="app">
+  <header>
+    <div class="brand">스터디아 <span class="tag">ADMIN</span></div>
+    <div class="who"><strong id="whoEmail"></strong><button id="logoutBtn">로그아웃</button></div>
+  </header>
+  <aside>
+    <div class="nav-item active" data-sec="overview"><span class="ico">📊</span>개요</div>
+    <div class="nav-item" data-sec="users"><span class="ico">👥</span>사용자</div>
+    <div class="nav-item" data-sec="subs"><span class="ico">💳</span>결제·구독</div>
+    <div class="nav-item" data-sec="errors"><span class="ico">⚠️</span>오류·이상</div>
+    <div class="nav-item" data-sec="refunds"><span class="ico">💸</span>환불 플래그</div>
+    <div class="nav-item" data-sec="audit"><span class="ico">📜</span>감사 로그</div>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<!-- drawer -->
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<div class="drawer" id="drawer">
+  <div class="head">
+    <h3 id="drawerTitle">사용자 상세</h3>
+    <button class="close" id="drawerClose">✕</button>
+  </div>
+  <div class="body" id="drawerBody"></div>
+</div>
+
+<!-- modal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modal"></div>
+</div>
+
+<!-- toast -->
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// Studia Admin — 단일 파일 SPA
+// ══════════════════════════════════════════════════════════════════
+(function(){
+'use strict';
+
+// ───── 환경 ─────
+var SUPABASE_URL='https://absaqekgxcljkjxgcjbp.supabase.co';
+var SUPABASE_ANON_KEY='sb_publishable_5On3W-4cDNZHjkl5yNLpfg_N7ZSqwen';
+var ADMIN_API_URL=SUPABASE_URL+'/functions/v1/admin-api';
+
+var sb=null;
+try{
+  if(window.supabase && window.supabase.createClient){
+    sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{
+      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}
+    });
+  }
+}catch(e){console.warn('[Admin] supabase init fail',e);}
+
+// ───── 공용 유틸 ─────
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function fmtNum(n){return (Number(n)||0).toLocaleString('ko-KR');}
+function fmtKRW(n){return '₩'+fmtNum(Math.round(Number(n)||0));}
+function fmtDate(iso){ if(!iso) return '-'; try{var d=new Date(iso); if(isNaN(d)) return '-'; return d.toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'});}catch(e){return '-';} }
+function fmtDateTime(iso){ if(!iso) return '-'; try{var d=new Date(iso); if(isNaN(d)) return '-'; return d.toLocaleString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '-';} }
+function toast(msg,isErr){
+  var el=$('toast'); el.textContent=msg; el.className=(isErr?'on err':'on');
+  setTimeout(function(){el.className='';},2400);
+}
+
+// ───── API 호출 ─────
+async function callAdmin(action, params){
+  if(!sb) throw new Error('Supabase 미초기화');
+  var sess=await sb.auth.getSession();
+  var token=sess && sess.data && sess.data.session && sess.data.session.access_token;
+  if(!token) throw new Error('세션이 없습니다. 다시 로그인하세요.');
+  var body=Object.assign({action:action},params||{});
+  var res=await fetch(ADMIN_API_URL,{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},
+    body:JSON.stringify(body)
+  });
+  var json=null;
+  try{ json=await res.json(); }catch(e){ throw new Error('서버 응답 파싱 실패 ('+res.status+')'); }
+  if(!res.ok){ throw new Error(json && json.error || ('HTTP '+res.status)); }
+  return json;
+}
+
+// ───── 로그인 게이트 ─────
+var gateEl=$('gate'), appEl=$('app');
+function showGate(msg,isErr){
+  gateEl.style.display='flex';
+  appEl.classList.remove('ready');
+  if(msg){ var m=$('gateMsg'); m.textContent=msg; m.className=isErr?'msg err':'msg info'; }
+}
+function hideGate(){ gateEl.style.display='none'; appEl.classList.add('ready'); }
+
+async function checkSession(){
+  if(!sb){ showGate('Supabase 클라이언트를 불러오지 못했습니다.',true); return; }
+  var sess=await sb.auth.getSession();
+  var s=sess && sess.data && sess.data.session;
+  if(!s){ showGate(''); return; }
+  // 세션 있음 → admin 여부 확인(stats_overview 호출로 대체 — 401/403이면 거부)
+  try{
+    await callAdmin('stats_overview',{days:30});
+    $('whoEmail').textContent=s.user.email||'';
+    hideGate();
+    route();
+  }catch(e){
+    var msg=String(e && e.message||e);
+    if(/403|Forbidden/i.test(msg)){
+      showGate('관리자 권한이 없는 계정입니다.',true);
+      await sb.auth.signOut();
+    }else if(/401|Unauthorized/i.test(msg)){
+      showGate('세션이 만료되었습니다. 다시 로그인하세요.',true);
+      await sb.auth.signOut();
+    }else{
+      showGate(msg,true);
+    }
+  }
+}
+
+$('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var btn=$('loginBtn'); btn.disabled=true; btn.textContent='로그인 중…';
+  var email=$('em').value.trim(), pw=$('pw').value;
+  try{
+    var r=await sb.auth.signInWithPassword({email:email,password:pw});
+    if(r.error){ throw new Error(r.error.message||'로그인 실패'); }
+    await checkSession();
+  }catch(e){
+    showGate(String(e && e.message || e),true);
+  }finally{
+    btn.disabled=false; btn.textContent='로그인';
+  }
+});
+
+$('logoutBtn').addEventListener('click', async function(){
+  await sb.auth.signOut();
+  location.reload();
+});
+
+// ───── 라우팅 (사이드바 탭) ─────
+var currentSec='overview';
+Array.prototype.forEach.call(document.querySelectorAll('.nav-item'),function(el){
+  el.addEventListener('click',function(){
+    Array.prototype.forEach.call(document.querySelectorAll('.nav-item'),function(x){x.classList.remove('active');});
+    el.classList.add('active');
+    currentSec=el.getAttribute('data-sec');
+    route();
+  });
+});
+
+function route(){
+  var m=$('main');
+  if(currentSec==='overview') renderOverview(m);
+  else if(currentSec==='users') renderUsers(m);
+  else if(currentSec==='subs') renderSubs(m);
+  else if(currentSec==='errors') renderErrors(m);
+  else if(currentSec==='refunds') renderRefunds(m);
+  else if(currentSec==='audit') renderAudit(m);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 섹션 1: 개요
+// ══════════════════════════════════════════════════════════════════
+async function renderOverview(m){
+  m.innerHTML='<h2 class="page">개요</h2><p class="hint">스터디아 전체 현황을 한눈에.</p><div id="ovBody" class="loading">불러오는 중…</div>';
+  try{
+    var d=await callAdmin('stats_overview',{days:30});
+    var subKeys=Object.keys(d.subCounts||{});
+    var subLines=subKeys.length ? subKeys.map(function(k){
+      return '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span class="muted">'+esc(k)+'</span><strong>'+fmtNum(d.subCounts[k])+'</strong></div>';
+    }).join('') : '<div class="muted">구독 레코드 없음</div>';
+
+    var chartCalls=renderChart(d.daily14||[],function(r){return r.calls;},false);
+    var chartSignups=renderChart(d.daily14Signups||[],function(r){return r.count;},true);
+
+    $('ovBody').innerHTML=
+      '<div class="stat-grid">'+
+        statCard('총 가입자',fmtNum(d.totalUsers),'전체 기간')+
+        statCard('최근 30일 신규',fmtNum(d.newUsers),'가입 완료')+
+        statCard('체험 중',fmtNum(d.activeTrials),'결제수단 등록 + 체험 미만료')+
+        statCard('결제수단 미등록',fmtNum(d.noBilling),'가입했으나 카드 없음')+
+      '</div>'+
+      '<div class="stat-grid">'+
+        statCard('예상 MRR',fmtKRW(d.mrr_krw),'월 '+fmtNum(d.activeMonthly)+' · 연 '+fmtNum(d.activeYearly))+
+        statCard('최근 30일 API 호출',fmtNum(d.callCount),fmtNum(d.failCount)+'건 실패')+
+        statCard('최근 30일 Claude 비용',fmtKRW(d.costTotal),'usage_logs 합계')+
+      '</div>'+
+      '<div class="card"><h3>최근 14일 API 호출 수</h3>'+chartCalls+'</div>'+
+      '<div class="card"><h3>최근 14일 신규 가입</h3>'+chartSignups+'</div>'+
+      '<div class="card"><h3>구독 상태 분포 (plan/status)</h3>'+subLines+'</div>';
+  }catch(e){
+    $('ovBody').innerHTML='<div class="empty">조회 실패: '+esc(e.message||e)+'</div>';
+  }
+}
+function statCard(title, big, sub){
+  return '<div class="card"><h3>'+esc(title)+'</h3><div class="big">'+big+'</div><div class="sub">'+esc(sub||'')+'</div></div>';
+}
+function renderChart(rows,valueFn,alt){
+  if(!rows.length) return '<div class="muted">데이터 없음</div>';
+  var max=0; rows.forEach(function(r){var v=valueFn(r); if(v>max) max=v;});
+  if(max===0) max=1;
+  var bars=rows.map(function(r){
+    var v=valueFn(r);
+    var h=Math.max(2, Math.round(v/max*90));
+    var label=r.date.slice(5)+' ('+v+')';
+    return '<div class="chart-bar'+(alt?' alt':'')+'" style="height:'+h+'px" title="'+esc(label)+'"></div>';
+  }).join('');
+  var firstLabel=rows[0].date.slice(5);
+  var lastLabel=rows[rows.length-1].date.slice(5);
+  return '<div class="chart-row">'+bars+'</div><div class="chart-labels"><span>'+firstLabel+'</span><span>'+lastLabel+'</span></div>';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 섹션 2: 사용자 관리
+// ══════════════════════════════════════════════════════════════════
+var userState={q:'',filter:'all',page:1,limit:20};
+function renderUsers(m){
+  m.innerHTML=
+    '<h2 class="page">사용자 관리</h2>'+
+    '<div class="toolbar">'+
+      '<input id="uQ" type="text" placeholder="이메일·이름 검색" value="'+esc(userState.q)+'">'+
+      '<select id="uFilter">'+
+        '<option value="all">전체</option>'+
+        '<option value="trial">체험 중</option>'+
+        '<option value="active">유료 구독 활성</option>'+
+        '<option value="cancelled">취소 예정/만료</option>'+
+        '<option value="no_billing">결제수단 미등록</option>'+
+        '<option value="suspended">정지됨</option>'+
+      '</select>'+
+      '<button class="btn" id="uApply">검색</button>'+
+    '</div>'+
+    '<div id="usersBody" class="loading">불러오는 중…</div>';
+  $('uFilter').value=userState.filter;
+  $('uApply').addEventListener('click',function(){
+    userState.q=$('uQ').value.trim();
+    userState.filter=$('uFilter').value;
+    userState.page=1;
+    loadUsers();
+  });
+  $('uQ').addEventListener('keydown',function(e){ if(e.key==='Enter') $('uApply').click(); });
+  loadUsers();
+}
+async function loadUsers(){
+  var body=$('usersBody'); body.innerHTML='<div class="loading">불러오는 중…</div>';
+  try{
+    var d=await callAdmin('list_users',userState);
+    if(!d.rows||!d.rows.length){
+      body.innerHTML='<div class="empty">조건에 해당하는 사용자가 없습니다.</div>';
+      return;
+    }
+    var rows=d.rows.map(function(r){
+      var stateLabel=computeUserState(r);
+      return '<tr data-uid="'+esc(r.id)+'">'+
+        '<td><strong>'+esc(r.display_name||'(이름 없음)')+'</strong><div class="mono">'+esc(r.email||'')+'</div></td>'+
+        '<td>'+stateLabel+'</td>'+
+        '<td>'+esc(r.signup_source||'email')+'</td>'+
+        '<td>'+fmtDate(r.created_at)+'</td>'+
+        '<td>'+fmtDate(r.trial_ends_at)+'</td>'+
+        '<td>'+fmtNum(r.usage30d.calls)+' / '+fmtKRW(r.usage30d.cost)+'</td>'+
+        '<td><button class="rowact" data-a="detail">상세</button></td>'+
+      '</tr>';
+    }).join('');
+    var totalPages=Math.max(1,Math.ceil(d.total/d.limit));
+    body.innerHTML=
+      '<table class="data"><thead><tr>'+
+        '<th>사용자</th><th>상태</th><th>가입경로</th><th>가입일</th><th>체험 만료</th><th>30일 사용량</th><th></th>'+
+      '</tr></thead><tbody>'+rows+'</tbody></table>'+
+      '<div class="pager">'+
+        '<button id="uPrev" '+(userState.page<=1?'disabled':'')+'>← 이전</button>'+
+        '<span>'+userState.page+' / '+totalPages+' · 총 '+fmtNum(d.total)+'명</span>'+
+        '<button id="uNext" '+(userState.page>=totalPages?'disabled':'')+'>다음 →</button>'+
+      '</div>';
+    $('uPrev').addEventListener('click',function(){userState.page--; loadUsers();});
+    $('uNext').addEventListener('click',function(){userState.page++; loadUsers();});
+    Array.prototype.forEach.call(body.querySelectorAll('tr[data-uid]'),function(tr){
+      tr.querySelector('[data-a=detail]').addEventListener('click',function(){openUserDetail(tr.getAttribute('data-uid'));});
+    });
+  }catch(e){
+    body.innerHTML='<div class="empty">조회 실패: '+esc(e.message||e)+'</div>';
+  }
+}
+function computeUserState(r){
+  if(r.suspended_at) return '<span class="badge suspended">정지됨</span>';
+  if(!r.billing_registered_at) return '<span class="badge needs_payment">카드 미등록</span>';
+  var sub=r.subscription;
+  if(sub){
+    if(sub.status==='active' && sub.plan!=='trial') return '<span class="badge active">'+esc(sub.plan)+'</span>';
+    if(sub.cancel_at_period_end) return '<span class="badge cancelled">취소 예정</span>';
+    if(sub.status==='past_due') return '<span class="badge past_due">연체</span>';
+    if(sub.status==='cancelled') return '<span class="badge cancelled">해지</span>';
+    if(sub.status==='expired') return '<span class="badge expired">만료</span>';
+  }
+  if(r.trial_ends_at && new Date(r.trial_ends_at)>new Date()) return '<span class="badge trial">체험 중</span>';
+  return '<span class="badge expired">체험 만료</span>';
+}
+
+// 사용자 상세 drawer
+async function openUserDetail(userId){
+  $('drawerBackdrop').classList.add('on');
+  $('drawer').classList.add('on');
+  $('drawerBody').innerHTML='<div class="loading">불러오는 중…</div>';
+  try{
+    var d=await callAdmin('user_detail',{user_id:userId});
+    var p=d.profile, sub=(d.subscriptions&&d.subscriptions[0])||null;
+    $('drawerTitle').textContent=(p.display_name||'(이름 없음)')+' · 상세';
+
+    var subInfo=sub?
+      '<div class="field"><label>구독</label><div class="val">'+esc(sub.plan)+' / '+esc(sub.status)+(sub.cancel_at_period_end?' (취소 예정)':'')+'</div></div>'+
+      '<div class="field"><label>구독 시작</label><div class="val">'+fmtDateTime(sub.period_start)+'</div></div>'+
+      '<div class="field"><label>구독 만료 예정</label><div class="val">'+fmtDateTime(sub.period_end)+'</div></div>'
+      : '<div class="field"><label>구독</label><div class="val muted">구독 레코드 없음</div></div>';
+
+    var usageRows=(d.usage_recent||[]).slice(0,10).map(function(u){
+      return '<tr><td>'+fmtDateTime(u.created_at)+'</td><td>'+esc(u.subject||'-')+'</td><td>'+esc(u.feature||'-')+'</td><td class="mono">'+fmtNum(u.tokens_in)+'→'+fmtNum(u.tokens_out)+'</td><td>'+fmtKRW(u.cost_krw)+'</td><td>'+(u.success?'✓':'<span style="color:#B41340">✗ '+esc(u.error_code||'')+'</span>')+'</td></tr>';
+    }).join('');
+
+    var auditRows=(d.auditLogs||[]).slice(0,10).map(function(a){
+      return '<tr><td>'+fmtDateTime(a.created_at)+'</td><td>'+esc(a.action)+'</td><td>'+esc(a.admin_email)+'</td><td>'+(a.success?'✓':'<span style="color:#B41340">✗</span>')+'</td></tr>';
+    }).join('');
+
+    var refundRows=(d.refundFlags||[]).map(function(f){
+      return '<tr><td>'+fmtDateTime(f.created_at)+'</td><td>'+fmtKRW(f.amount_krw)+'</td><td>'+esc(f.status)+'</td><td>'+esc(f.reason||'')+'</td></tr>';
+    }).join('');
+
+    $('drawerBody').innerHTML=
+      '<div class="field"><label>이메일</label><div class="val">'+esc(p.email||'')+'</div></div>'+
+      '<div class="field"><label>유저 ID</label><div class="val mono" style="font-size:0.78rem;color:#747779">'+esc(p.id)+'</div></div>'+
+      '<div class="field"><label>가입일</label><div class="val">'+fmtDateTime(p.created_at)+'</div></div>'+
+      '<div class="field"><label>가입 경로</label><div class="val">'+esc(p.signup_source||'email')+'</div></div>'+
+      '<div class="field"><label>체험 만료</label><div class="val">'+fmtDateTime(p.trial_ends_at)+'</div></div>'+
+      '<div class="field"><label>결제수단 등록</label><div class="val">'+(p.billing_registered_at?fmtDateTime(p.billing_registered_at):'<span class="muted">미등록</span>')+'</div></div>'+
+      (p.suspended_at?'<div class="field"><label>정지 상태</label><div class="val" style="color:#B41340">'+fmtDateTime(p.suspended_at)+' — '+esc(p.suspended_reason||'')+'</div></div>':'')+
+      subInfo+
+      '<div style="margin:20px 0;display:flex;gap:6px;flex-wrap:wrap;">'+
+        '<button class="btn" data-a="extend" style="padding:7px 12px;border-radius:8px;background:#4A40E0;color:#fff;font-weight:700;font-size:0.8rem;">체험 연장</button>'+
+        '<button class="btn" data-a="plan" style="padding:7px 12px;border-radius:8px;background:#1A0F5C;color:#fff;font-weight:700;font-size:0.8rem;">플랜 변경</button>'+
+        (sub&&sub.status==='active'&&!sub.cancel_at_period_end?'<button class="btn" data-a="cancel" style="padding:7px 12px;border-radius:8px;background:#fff;color:#B41340;border:1px solid #F5DFDF;font-weight:700;font-size:0.8rem;">구독 취소 예약</button>':'')+
+        (sub&&sub.cancel_at_period_end?'<button class="btn" data-a="reactivate" style="padding:7px 12px;border-radius:8px;background:#006947;color:#fff;font-weight:700;font-size:0.8rem;">취소 되돌리기</button>':'')+
+        '<button class="btn" data-a="refund" style="padding:7px 12px;border-radius:8px;background:#fff;color:#A86200;border:1px solid #FFE6D1;font-weight:700;font-size:0.8rem;">환불 플래그</button>'+
+        (p.suspended_at
+          ? '<button class="btn" data-a="unsuspend" style="padding:7px 12px;border-radius:8px;background:#006947;color:#fff;font-weight:700;font-size:0.8rem;">정지 해제</button>'
+          : '<button class="btn" data-a="suspend" style="padding:7px 12px;border-radius:8px;background:#B41340;color:#fff;font-weight:700;font-size:0.8rem;">계정 정지</button>')+
+      '</div>'+
+
+      '<h4 style="margin-top:18px;margin-bottom:8px;font-size:0.9rem;letter-spacing:-0.01em;">최근 사용량 (최대 10건)</h4>'+
+      (usageRows?'<table class="data"><thead><tr><th>시각</th><th>과목</th><th>기능</th><th>토큰</th><th>비용</th><th>결과</th></tr></thead><tbody>'+usageRows+'</tbody></table>':'<div class="muted" style="padding:12px 0;">사용 기록 없음</div>')+
+
+      (refundRows?'<h4 style="margin-top:18px;margin-bottom:8px;font-size:0.9rem;">환불 플래그 내역</h4><table class="data"><thead><tr><th>시각</th><th>금액</th><th>상태</th><th>사유</th></tr></thead><tbody>'+refundRows+'</tbody></table>':'')+
+
+      (auditRows?'<h4 style="margin-top:18px;margin-bottom:8px;font-size:0.9rem;">이 사용자에 대한 감사 로그</h4><table class="data"><thead><tr><th>시각</th><th>액션</th><th>관리자</th><th>결과</th></tr></thead><tbody>'+auditRows+'</tbody></table>':'');
+
+    // 액션 버튼 연결
+    Array.prototype.forEach.call($('drawerBody').querySelectorAll('[data-a]'),function(b){
+      b.addEventListener('click',function(){ handleUserAction(b.getAttribute('data-a'), p); });
+    });
+  }catch(e){
+    $('drawerBody').innerHTML='<div class="empty">조회 실패: '+esc(e.message||e)+'</div>';
+  }
+}
+function closeDrawer(){ $('drawerBackdrop').classList.remove('on'); $('drawer').classList.remove('on'); }
+$('drawerClose').addEventListener('click',closeDrawer);
+$('drawerBackdrop').addEventListener('click',closeDrawer);
+
+// 사용자 액션 → 확인 모달 → API 호출
+async function handleUserAction(action,profile){
+  var uid=profile.id;
+  var label=profile.display_name||profile.email||uid.slice(0,8);
+
+  if(action==='extend'){
+    promptModal('체험 기간 연장', '현재 체험 만료: '+fmtDateTime(profile.trial_ends_at), [
+      {label:'며칠 연장?', type:'number', id:'days', value:'7', min:1, max:365}
+    ], async function(vals){
+      await doAction('extend_trial',{user_id:uid, days:Number(vals.days)}, label+' 체험을 '+vals.days+'일 연장했습니다.');
+      openUserDetail(uid); loadUsers();
+    });
+  }
+  else if(action==='plan'){
+    promptModal('플랜 수동 변경', '토스 결제 연동 전에는 DB의 plan 값만 변경됩니다.', [
+      {label:'변경할 플랜', type:'select', id:'plan', options:[
+        {v:'trial',t:'trial (체험)'},{v:'monthly',t:'monthly (월)'},{v:'yearly',t:'yearly (연)'},{v:'cancelled',t:'cancelled (해지)'}
+      ], value:'monthly'}
+    ], async function(vals){
+      await doAction('change_plan',{user_id:uid, plan:vals.plan}, label+' 플랜을 '+vals.plan+'으로 변경했습니다.');
+      openUserDetail(uid); loadUsers();
+    });
+  }
+  else if(action==='cancel'){
+    confirmModal('구독 취소 예약', label+'의 구독을 기간 종료 시점에 취소하도록 예약합니다. 지금 즉시 해지되진 않습니다.', async function(){
+      await doAction('cancel_subscription',{user_id:uid}, '취소 예약 완료');
+      openUserDetail(uid); loadUsers();
+    }, 'danger');
+  }
+  else if(action==='reactivate'){
+    confirmModal('취소 예약 되돌리기', label+'의 취소 예약을 해제하고 구독을 재활성화합니다.', async function(){
+      await doAction('reactivate_subscription',{user_id:uid}, '재활성화 완료');
+      openUserDetail(uid); loadUsers();
+    });
+  }
+  else if(action==='refund'){
+    promptModal('환불 플래그 등록', '실제 결제는 아직 연동되지 않아, 이 플래그는 기록용입니다. Phase 2(토스 연동) 이후 실제 환불과 연결됩니다.', [
+      {label:'환불 금액 (원)', type:'number', id:'amount', value:'18900', min:1},
+      {label:'사유', type:'textarea', id:'reason', value:''}
+    ], async function(vals){
+      await doAction('flag_refund',{user_id:uid, amount_krw:Number(vals.amount), reason:vals.reason}, '환불 플래그가 등록되었습니다.');
+      openUserDetail(uid);
+    });
+  }
+  else if(action==='suspend'){
+    promptModal('계정 정지', '이 사용자의 로그인을 즉시 차단합니다. 기존 발급된 토큰은 만료될 때까지 남아 있을 수 있습니다.', [
+      {label:'정지 사유', type:'textarea', id:'reason', value:''}
+    ], async function(vals){
+      await doAction('suspend_user',{user_id:uid, reason:vals.reason}, label+' 계정을 정지했습니다.');
+      openUserDetail(uid); loadUsers();
+    }, 'danger');
+  }
+  else if(action==='unsuspend'){
+    confirmModal('정지 해제', label+'의 정지를 해제하고 로그인을 다시 허용합니다.', async function(){
+      await doAction('unsuspend_user',{user_id:uid}, '정지가 해제되었습니다.');
+      openUserDetail(uid); loadUsers();
+    });
+  }
+}
+
+async function doAction(action,params,successMsg){
+  try{
+    await callAdmin(action,params);
+    toast(successMsg||'완료');
+  }catch(e){
+    toast('실패: '+(e.message||e), true);
+    throw e;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 섹션 3: 결제·구독
+// ══════════════════════════════════════════════════════════════════
+var subState={status:'all',page:1,limit:30};
+function renderSubs(m){
+  m.innerHTML=
+    '<h2 class="page">결제·구독 상태</h2>'+
+    '<div class="toolbar">'+
+      '<select id="sStatus">'+
+        '<option value="all">전체 상태</option>'+
+        '<option value="active">active</option>'+
+        '<option value="past_due">past_due</option>'+
+        '<option value="cancelled">cancelled</option>'+
+        '<option value="expired">expired</option>'+
+      '</select>'+
+      '<button class="btn" id="sApply">필터</button>'+
+    '</div>'+
+    '<div id="subsBody" class="loading">불러오는 중…</div>';
+  $('sStatus').value=subState.status;
+  $('sApply').addEventListener('click',function(){
+    subState.status=$('sStatus').value; subState.page=1; loadSubs();
+  });
+  loadSubs();
+}
+async function loadSubs(){
+  var body=$('subsBody'); body.innerHTML='<div class="loading">불러오는 중…</div>';
+  try{
+    var d=await callAdmin('list_subscriptions',subState);
+    if(!d.rows || !d.rows.length){ body.innerHTML='<div class="empty">레코드 없음</div>'; return; }
+    var rows=d.rows.map(function(r){
+      return '<tr data-uid="'+esc(r.user_id)+'">'+
+        '<td><strong>'+esc(r.user?r.user.display_name||'-':'-')+'</strong><div class="mono">'+esc(r.user?r.user.email||'':'')+'</div></td>'+
+        '<td><span class="badge '+esc(r.status)+'">'+esc(r.plan)+'/'+esc(r.status)+'</span></td>'+
+        '<td>'+fmtDate(r.period_start)+'</td>'+
+        '<td>'+fmtDate(r.period_end)+'</td>'+
+        '<td>'+(r.cancel_at_period_end?'<span class="badge cancelled">예약됨</span>':'-')+'</td>'+
+        '<td><button class="rowact" data-a="detail">상세</button></td>'+
+      '</tr>';
+    }).join('');
+    var totalPages=Math.max(1,Math.ceil(d.total/d.limit));
+    body.innerHTML=
+      '<table class="data"><thead><tr><th>사용자</th><th>플랜/상태</th><th>시작</th><th>만료</th><th>취소 예약</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'+
+      '<div class="pager">'+
+        '<button id="sPrev" '+(subState.page<=1?'disabled':'')+'>← 이전</button>'+
+        '<span>'+subState.page+' / '+totalPages+' · 총 '+fmtNum(d.total)+'</span>'+
+        '<button id="sNext" '+(subState.page>=totalPages?'disabled':'')+'>다음 →</button>'+
+      '</div>';
+    $('sPrev').addEventListener('click',function(){subState.page--; loadSubs();});
+    $('sNext').addEventListener('click',function(){subState.page++; loadSubs();});
+    Array.prototype.forEach.call(body.querySelectorAll('tr[data-uid]'),function(tr){
+      tr.querySelector('[data-a=detail]').addEventListener('click',function(){openUserDetail(tr.getAttribute('data-uid'));});
+    });
+  }catch(e){
+    body.innerHTML='<div class="empty">조회 실패: '+esc(e.message||e)+'</div>';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 섹션 4: 오류·이상 모니터링
+// ══════════════════════════════════════════════════════════════════
+async function renderErrors(m){
+  m.innerHTML=
+    '<h2 class="page">오류·이상 모니터링</h2>'+
+    '<p class="hint">최근 7일간 실패한 API 호출과 24시간 기준 상위 사용자.</p>'+
+    '<div class="stat-grid" id="errStats"><div class="card"><div class="loading">불러오는 중…</div></div></div>'+
+    '<div class="card"><h3>에러 코드별 발생 건수 (최근 7일)</h3><div id="errByCode" class="loading">불러오는 중…</div></div>'+
+    '<div class="card"><h3>실패한 API 호출 (최근 7일, 최대 50건)</h3><div id="errList" class="loading">불러오는 중…</div></div>'+
+    '<div class="card"><h3>최근 24시간 토큰 사용량 상위 20명</h3><div id="heavy" class="loading">불러오는 중…</div></div>';
+  try{
+    var d=await callAdmin('list_errors',{days:7, limit:50});
+    $('errStats').innerHTML=
+      statCard('실패 건수',fmtNum(d.total),'최근 '+d.days+'일')+
+      statCard('실패 코드 종류',fmtNum(Object.keys(d.byCode||{}).length),'에러 유형')+
+      statCard('영향 받은 사용자',fmtNum(new Set((d.rows||[]).map(function(r){return r.user_id;})).size),'중복 제외');
+
+    var codeHtml=Object.keys(d.byCode||{}).map(function(k){
+      return '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span class="mono">'+esc(k)+'</span><strong>'+fmtNum(d.byCode[k])+'</strong></div>';
+    }).join('');
+    $('errByCode').innerHTML=codeHtml||'<div class="muted">최근 7일간 오류 없음</div>';
+
+    var listRows=(d.rows||[]).map(function(r){
+      return '<tr><td>'+fmtDateTime(r.created_at)+'</td><td><strong>'+esc(r.user?r.user.display_name||'-':'-')+'</strong><div class="mono">'+esc(r.user?r.user.email||'':'')+'</div></td><td>'+esc(r.subject||'-')+'</td><td>'+esc(r.feature||'-')+'</td><td class="mono" style="color:#B41340">'+esc(r.error_code||'-')+'</td></tr>';
+    }).join('');
+    $('errList').innerHTML=listRows?'<table class="data"><thead><tr><th>시각</th><th>사용자</th><th>과목</th><th>기능</th><th>에러 코드</th></tr></thead><tbody>'+listRows+'</tbody></table>':'<div class="muted">최근 7일간 실패한 호출 없음</div>';
+  }catch(e){
+    $('errStats').innerHTML='<div class="empty">조회 실패: '+esc(e.message||e)+'</div>';
+    $('errByCode').innerHTML=''; $('errList').innerHTML='';
+  }
+
+  try{
+    var h=await callAdmin('list_heavy_users',{hours:24, top:20});
+    var rows=(h.rows||[]).map(function(r){
+      return '<tr data-uid="'+esc(r.user_id)+'"><td><strong>'+esc(r.user?r.user.display_name||'-':'-')+'</strong><div class="mono">'+esc(r.user?r.user.email||'':'')+'</div></td><td>'+fmtNum(r.tokens)+'</td><td>'+fmtNum(r.calls)+'</td><td>'+fmtKRW(r.cost)+'</td><td><button class="rowact" data-a="detail">상세</button></td></tr>';
+    }).join('');
+    $('heavy').innerHTML=rows?'<table class="data"><thead><tr><th>사용자</th><th>토큰(in+out)</th><th>호출수</th><th>비용</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>':'<div class="muted">최근 24시간 사용 기록 없음</div>';
+    Array.prototype.forEach.call($('heavy').querySelectorAll('tr[data-uid]'),function(tr){
+      tr.querySelector('[data-a=detail]').addEventListener('click',function(){openUserDetail(tr.getAttribute('data-uid'));});
+    });
+  }catch(e){
+    $('heavy').innerHTML='<div class="empty">조회 실패: '+esc(e.message||e)+'</div>';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 섹션 5: 환불 플래그
+// ══════════════════════════════════════════════════════════════════
+var refundState={status:'all'};
+function renderRefunds(m){
+  m.innerHTML=
+    '<h2 class="page">환불 플래그</h2>'+
+    '<p class="hint">실제 결제 연동(Phase 2) 전까지 환불은 여기서 플래그만 기록합니다.</p>'+
+    '<div class="toolbar">'+
+      '<select id="rStatus">'+
+        '<option value="all">전체</option><option value="pending">pending</option>'+
+        '<option value="processed">processed</option><option value="rejected">rejected</option>'+
+      '</select>'+
+      '<button class="btn" id="rApply">필터</button>'+
+    '</div>'+
+    '<div id="refundsBody" class="loading">불러오는 중…</div>';
+  $('rStatus').value=refundState.status;
+  $('rApply').addEventListener('click',function(){ refundState.status=$('rStatus').value; loadRefunds(); });
+  loadRefunds();
+}
+async function loadRefunds(){
+  var body=$('refundsBody'); body.innerHTML='<div class="loading">불러오는 중…</div>';
+  try{
+    var d=await callAdmin('list_refund_flags',refundState);
+    if(!d.rows||!d.rows.length){ body.innerHTML='<div class="empty">환불 플래그 없음</div>'; return; }
+    var rows=d.rows.map(function(r){
+      return '<tr data-id="'+esc(r.id)+'">'+
+        '<td>'+fmtDateTime(r.created_at)+'</td>'+
+        '<td><strong>'+esc(r.user?r.user.display_name||'-':'-')+'</strong><div class="mono">'+esc(r.user?r.user.email||'':'')+'</div></td>'+
+        '<td>'+fmtKRW(r.amount_krw)+'</td>'+
+        '<td><span class="badge '+(r.status==='processed'?'active':(r.status==='rejected'?'cancelled':'needs_payment'))+'">'+esc(r.status)+'</span></td>'+
+        '<td>'+esc(r.reason||'')+'</td>'+
+        '<td>'+esc(r.flagged_by||'')+'</td>'+
+        '<td>'+(r.status==='pending'?'<button class="rowact" data-a="process">처리 완료</button><button class="rowact danger" data-a="reject">반려</button>':'-')+'</td>'+
+      '</tr>';
+    }).join('');
+    body.innerHTML='<table class="data"><thead><tr><th>시각</th><th>사용자</th><th>금액</th><th>상태</th><th>사유</th><th>기록자</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+    Array.prototype.forEach.call(body.querySelectorAll('tr[data-id]'),function(tr){
+      var id=tr.getAttribute('data-id');
+      var proc=tr.querySelector('[data-a=process]');
+      var rej=tr.querySelector('[data-a=reject]');
+      if(proc) proc.addEventListener('click',async function(){
+        try{ await callAdmin('update_refund_status',{refund_id:id, status:'processed'}); toast('처리 완료'); loadRefunds(); }
+        catch(e){ toast('실패: '+(e.message||e),true); }
+      });
+      if(rej) rej.addEventListener('click',async function(){
+        try{ await callAdmin('update_refund_status',{refund_id:id, status:'rejected'}); toast('반려됨'); loadRefunds(); }
+        catch(e){ toast('실패: '+(e.message||e),true); }
+      });
+    });
+  }catch(e){
+    body.innerHTML='<div class="empty">조회 실패: '+esc(e.message||e)+'</div>';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 섹션 6: 감사 로그
+// ══════════════════════════════════════════════════════════════════
+async function renderAudit(m){
+  m.innerHTML='<h2 class="page">감사 로그</h2><p class="hint">관리자 쓰기 액션 기록. 최근 50건.</p><div id="auditBody" class="loading">불러오는 중…</div>';
+  try{
+    var d=await callAdmin('list_audit_logs',{limit:50});
+    if(!d.rows||!d.rows.length){ $('auditBody').innerHTML='<div class="empty">기록 없음</div>'; return; }
+    var rows=d.rows.map(function(r){
+      var payloadStr='';
+      try{ payloadStr=JSON.stringify(r.payload||{});
+           if(payloadStr.length>80) payloadStr=payloadStr.slice(0,80)+'…'; }
+      catch(e){ payloadStr=''; }
+      return '<tr>'+
+        '<td>'+fmtDateTime(r.created_at)+'</td>'+
+        '<td>'+esc(r.action)+'</td>'+
+        '<td>'+esc(r.admin_email||'')+'</td>'+
+        '<td class="mono" style="font-size:0.7rem;color:#747779">'+esc(r.target_user_id||'-')+'</td>'+
+        '<td class="mono" style="font-size:0.72rem;">'+esc(payloadStr)+'</td>'+
+        '<td>'+(r.success?'✓':'<span style="color:#B41340">✗ '+esc(r.error_message||'')+'</span>')+'</td>'+
+      '</tr>';
+    }).join('');
+    $('auditBody').innerHTML='<table class="data"><thead><tr><th>시각</th><th>액션</th><th>관리자</th><th>대상 user_id</th><th>페이로드</th><th>결과</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }catch(e){
+    $('auditBody').innerHTML='<div class="empty">조회 실패: '+esc(e.message||e)+'</div>';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 모달 유틸
+// ══════════════════════════════════════════════════════════════════
+function closeModal(){ $('modalBackdrop').classList.remove('on'); $('modal').innerHTML=''; }
+$('modalBackdrop').addEventListener('click',function(e){ if(e.target===$('modalBackdrop')) closeModal(); });
+
+function confirmModal(title,msg,onOk,variant){
+  $('modal').innerHTML='<h4>'+esc(title)+'</h4><p>'+esc(msg)+'</p><div class="btns"><button class="cancel" id="mCancel">취소</button><button class="ok '+(variant==='danger'?'danger':'')+'" id="mOk">확인</button></div>';
+  $('modalBackdrop').classList.add('on');
+  $('mCancel').addEventListener('click',closeModal);
+  $('mOk').addEventListener('click',async function(){
+    closeModal();
+    try{ await onOk(); }catch(e){ /* 에러 토스트는 onOk 내부에서 처리 */ }
+  });
+}
+
+function promptModal(title,msg,fields,onOk,variant){
+  var fieldsHtml=fields.map(function(f){
+    if(f.type==='select'){
+      var opts=f.options.map(function(o){return '<option value="'+esc(o.v)+'"'+(o.v===f.value?' selected':'')+'>'+esc(o.t)+'</option>';}).join('');
+      return '<label style="font-size:0.78rem;color:#747779;display:block;margin-bottom:4px;font-weight:600;">'+esc(f.label)+'</label><select data-k="'+esc(f.id)+'">'+opts+'</select>';
+    }
+    if(f.type==='textarea'){
+      return '<label style="font-size:0.78rem;color:#747779;display:block;margin-bottom:4px;font-weight:600;">'+esc(f.label)+'</label><textarea data-k="'+esc(f.id)+'">'+esc(f.value||'')+'</textarea>';
+    }
+    var extras='';
+    if(f.type==='number') extras=' min="'+esc(f.min||'')+'" max="'+esc(f.max||'')+'"';
+    return '<label style="font-size:0.78rem;color:#747779;display:block;margin-bottom:4px;font-weight:600;">'+esc(f.label)+'</label><input type="'+esc(f.type||'text')+'" data-k="'+esc(f.id)+'" value="'+esc(f.value||'')+'"'+extras+'>';
+  }).join('');
+
+  $('modal').innerHTML='<h4>'+esc(title)+'</h4><p>'+esc(msg)+'</p>'+fieldsHtml+'<div class="btns"><button class="cancel" id="mCancel">취소</button><button class="ok '+(variant==='danger'?'danger':'')+'" id="mOk">확인</button></div>';
+  $('modalBackdrop').classList.add('on');
+  $('mCancel').addEventListener('click',closeModal);
+  $('mOk').addEventListener('click',async function(){
+    var vals={};
+    Array.prototype.forEach.call($('modal').querySelectorAll('[data-k]'),function(el){ vals[el.getAttribute('data-k')]=el.value; });
+    closeModal();
+    try{ await onOk(vals); }catch(e){ /* 토스트는 호출 측 처리 */ }
+  });
+}
+
+// ESC 키로 drawer/modal 닫기
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){
+    if($('modalBackdrop').classList.contains('on')) closeModal();
+    else if($('drawer').classList.contains('on')) closeDrawer();
+  }
+});
+
+// ───── 진입점 ─────
+checkSession();
+
+})();
+</script>
+</body>
+</html>
