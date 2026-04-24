@@ -882,6 +882,36 @@
             40%{opacity:1;transform:scale(1.1);}
         }
 
+        /* ───────── Image Editor Modal (크롭/회전) ───────── */
+        .imgedit-modal{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10000;display:none;flex-direction:column;touch-action:none;}
+        .imgedit-modal.active{display:flex;}
+        .imgedit-header{flex:0 0 auto;padding:12px 16px;color:#fff;font-size:0.9rem;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+        .imgedit-header-title{font-weight:600;}
+        .imgedit-header-count{opacity:0.7;font-size:0.8rem;}
+        .imgedit-stage{flex:1 1 auto;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;}
+        .imgedit-canvas{max-width:100%;max-height:100%;touch-action:none;}
+        .imgedit-cropbox{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);box-sizing:border-box;cursor:move;}
+        .imgedit-handle{position:absolute;width:22px;height:22px;background:#fff;border:2px solid #4A40E0;border-radius:50%;box-sizing:border-box;}
+        .imgedit-handle.tl{top:-12px;left:-12px;cursor:nwse-resize;}
+        .imgedit-handle.tr{top:-12px;right:-12px;cursor:nesw-resize;}
+        .imgedit-handle.bl{bottom:-12px;left:-12px;cursor:nesw-resize;}
+        .imgedit-handle.br{bottom:-12px;right:-12px;cursor:nwse-resize;}
+        .imgedit-toolbar{flex:0 0 auto;padding:12px 16px 20px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;background:rgba(0,0,0,0.2);}
+        .imgedit-btn{flex:1 1 0;min-width:90px;max-width:180px;padding:12px 14px;border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;}
+        .imgedit-btn-rotate{background:#3a3a42;color:#fff;}
+        .imgedit-btn-skip{background:#6c6c76;color:#fff;}
+        .imgedit-btn-done{background:#4A40E0;color:#fff;}
+        .imgedit-btn:active{transform:scale(0.97);}
+        @media (max-width:480px){
+            .imgedit-toolbar{padding:10px 10px 16px;gap:6px;}
+            .imgedit-btn{min-width:80px;padding:11px 8px;font-size:0.85rem;}
+            .imgedit-handle{width:28px;height:28px;}
+            .imgedit-handle.tl{top:-15px;left:-15px;}
+            .imgedit-handle.tr{top:-15px;right:-15px;}
+            .imgedit-handle.bl{bottom:-15px;left:-15px;}
+            .imgedit-handle.br{bottom:-15px;right:-15px;}
+        }
+
     </style>
 </head>
 <body>
@@ -950,7 +980,7 @@
 
             <div id="authSignupExtra" style="display:none;">
                 <label for="authName" style="margin-top:12px;">닉네임 (선택)</label>
-                <input type="text" id="authName" class="setup-input" placeholder="예: 이쌤" maxlength="20" style="font-family:inherit;">
+                <input type="text" id="authName" class="setup-input" placeholder="예: 열공이" maxlength="20" style="font-family:inherit;">
                 <label class="setup-remember" for="authAgreeTerms" style="display:flex;align-items:flex-start;gap:8px;margin-top:14px;font-size:0.8rem;color:var(--text-secondary);cursor:pointer;font-weight:500;line-height:1.5;">
                     <input type="checkbox" id="authAgreeTerms" style="width:16px;height:16px;cursor:pointer;accent-color:var(--blue);margin-top:2px;flex-shrink:0;">
                     <span>이용약관 및 개인정보 처리방침에 동의합니다. <span style="color:var(--error);">*</span></span>
@@ -3247,6 +3277,289 @@ function multiImgNote(n){
     return n>1?('위 '+n+'장의 이미지는 하나의 지문을 ①②③... 순서대로 나눈 거야. 모두 이어붙여서 하나의 지문으로 보고 분석해줘.\n\n'):'';
 }
 
+// ══════════════════════════════════════════════
+//  Image Editor (Canvas 기반 크롭/회전, 외부 라이브러리 없음)
+//  사용법:
+//    ImageEditor.openForFiles([File1,File2,...]).then(function(editedFiles){ ... });
+//  - 이미지 파일은 편집 모달을 1장씩 거쳐 새 File(JPEG)로 반환됨
+//  - 이미지가 아닌 파일이나 편집 불가 파일은 원본 그대로 통과
+// ══════════════════════════════════════════════
+var ImageEditor=(function(){
+    var modal, stage, canvas, cropbox, countEl, btnRotate, btnSkip, btnDone;
+    var ctx, img, imgURL;
+    var rotation=0;                  // 0/90/180/270
+    var dispW=0, dispH=0;            // canvas 표시 크기 (rotation 적용 후)
+    var natW=0, natH=0;              // 원본 자연 크기
+    var crop={x:0,y:0,w:0,h:0};      // canvas 기준 크롭 박스 (px)
+    var drag=null;                   // {mode:'move'|'tl'|'tr'|'bl'|'br', sx,sy, init:{...}}
+    var resolveCb=null;
+    var originalFile=null;
+
+    function $(id){return document.getElementById(id);}
+
+    function ensureDom(){
+        if(modal) return true;
+        modal=$('imgeditModal');
+        if(!modal) return false;
+        stage=$('imgeditStage');
+        canvas=$('imgeditCanvas');
+        cropbox=$('imgeditCropbox');
+        countEl=$('imgeditCount');
+        btnRotate=$('imgeditRotate');
+        btnSkip=$('imgeditSkip');
+        btnDone=$('imgeditDone');
+        ctx=canvas.getContext('2d');
+        btnRotate.addEventListener('click',onRotate);
+        btnSkip.addEventListener('click',onSkip);
+        btnDone.addEventListener('click',onDone);
+        bindPointer();
+        return true;
+    }
+
+    function isImageFile(f){
+        if(!f||!f.type) return false;
+        return f.type.indexOf('image/')===0;
+    }
+
+    // 메인 진입점
+    function openForFiles(files){
+        return new Promise(function(resolve){
+            if(!files||!files.length){resolve([]);return;}
+            if(!ensureDom()){resolve(files.slice());return;}
+            var out=[];
+            var i=0;
+            function next(){
+                if(i>=files.length){resolve(out);return;}
+                var f=files[i++];
+                if(!isImageFile(f)){out.push(f);next();return;}
+                openOne(f,files.length,i).then(function(edited){
+                    out.push(edited||f);
+                    next();
+                }).catch(function(){
+                    out.push(f); // 실패 시 원본 통과
+                    next();
+                });
+            }
+            next();
+        });
+    }
+
+    function openOne(file,total,idx){
+        return new Promise(function(resolve,reject){
+            originalFile=file;
+            rotation=0;
+            if(imgURL){try{URL.revokeObjectURL(imgURL);}catch(e){}}
+            imgURL=URL.createObjectURL(file);
+            img=new Image();
+            img.onload=function(){
+                natW=img.naturalWidth; natH=img.naturalHeight;
+                countEl.textContent=(total>1)?(idx+' / '+total):'';
+                resolveCb=resolve;
+                modal.classList.add('active');
+                // 레이아웃 반영 후 캔버스 그리기
+                setTimeout(function(){
+                    layoutAndDraw();
+                    resetCropBox();
+                },0);
+            };
+            img.onerror=function(){reject(new Error('image_load_failed'));};
+            img.src=imgURL;
+        });
+    }
+
+    function close(){
+        modal.classList.remove('active');
+        resolveCb=null;
+        if(imgURL){try{URL.revokeObjectURL(imgURL);}catch(e){}imgURL=null;}
+        img=null;
+    }
+
+    // canvas 표시 크기 계산 & 그리기
+    function layoutAndDraw(){
+        var stageW=stage.clientWidth;
+        var stageH=stage.clientHeight;
+        if(!stageW||!stageH) return;
+        var rw=(rotation%180===0)?natW:natH;
+        var rh=(rotation%180===0)?natH:natW;
+        var scale=Math.min(stageW/rw, stageH/rh, 1);
+        dispW=Math.round(rw*scale);
+        dispH=Math.round(rh*scale);
+        canvas.width=dispW;
+        canvas.height=dispH;
+        // 회전 적용해서 drawImage
+        ctx.save();
+        ctx.clearRect(0,0,dispW,dispH);
+        ctx.translate(dispW/2,dispH/2);
+        ctx.rotate(rotation*Math.PI/180);
+        // 회전 후 원본 이미지의 그릴 대상 크기 (scale된 원본 크기)
+        var drawW=natW*scale;
+        var drawH=natH*scale;
+        ctx.drawImage(img,-drawW/2,-drawH/2,drawW,drawH);
+        ctx.restore();
+    }
+
+    function resetCropBox(){
+        // 기본 크롭 박스: 캔버스 전체의 80%를 중앙에
+        var pad=0.1;
+        crop.x=Math.round(dispW*pad);
+        crop.y=Math.round(dispH*pad);
+        crop.w=Math.round(dispW*(1-pad*2));
+        crop.h=Math.round(dispH*(1-pad*2));
+        updateCropDom();
+    }
+
+    function updateCropDom(){
+        // canvas의 실제 위치(stage 안의 중앙정렬)를 기준으로 cropbox 좌표 지정
+        var canvRect=canvas.getBoundingClientRect();
+        var stageRect=stage.getBoundingClientRect();
+        var offX=canvRect.left-stageRect.left;
+        var offY=canvRect.top-stageRect.top;
+        cropbox.style.left=(offX+crop.x)+'px';
+        cropbox.style.top=(offY+crop.y)+'px';
+        cropbox.style.width=crop.w+'px';
+        cropbox.style.height=crop.h+'px';
+    }
+
+    function clampCrop(){
+        if(crop.w<30) crop.w=30;
+        if(crop.h<30) crop.h=30;
+        if(crop.x<0) crop.x=0;
+        if(crop.y<0) crop.y=0;
+        if(crop.x+crop.w>dispW) crop.x=dispW-crop.w;
+        if(crop.y+crop.h>dispH) crop.y=dispH-crop.h;
+        if(crop.w>dispW){crop.w=dispW;crop.x=0;}
+        if(crop.h>dispH){crop.h=dispH;crop.y=0;}
+    }
+
+    // ─── 포인터(마우스/터치) 바인딩 ───
+    function bindPointer(){
+        var start=function(e){
+            var p=getPoint(e);
+            var target=e.target;
+            var h=target&&target.getAttribute&&target.getAttribute('data-h');
+            if(h){
+                drag={mode:h,sx:p.x,sy:p.y,init:{x:crop.x,y:crop.y,w:crop.w,h:crop.h}};
+                e.preventDefault();
+            } else if(target===cropbox){
+                drag={mode:'move',sx:p.x,sy:p.y,init:{x:crop.x,y:crop.y,w:crop.w,h:crop.h}};
+                e.preventDefault();
+            }
+        };
+        var move=function(e){
+            if(!drag) return;
+            var p=getPoint(e);
+            var dx=p.x-drag.sx;
+            var dy=p.y-drag.sy;
+            var ix=drag.init.x, iy=drag.init.y, iw=drag.init.w, ih=drag.init.h;
+            if(drag.mode==='move'){
+                crop.x=ix+dx; crop.y=iy+dy;
+            } else if(drag.mode==='tl'){
+                crop.x=ix+dx; crop.y=iy+dy; crop.w=iw-dx; crop.h=ih-dy;
+            } else if(drag.mode==='tr'){
+                crop.y=iy+dy; crop.w=iw+dx; crop.h=ih-dy;
+            } else if(drag.mode==='bl'){
+                crop.x=ix+dx; crop.w=iw-dx; crop.h=ih+dy;
+            } else if(drag.mode==='br'){
+                crop.w=iw+dx; crop.h=ih+dy;
+            }
+            clampCrop();
+            updateCropDom();
+            e.preventDefault();
+        };
+        var end=function(){ drag=null; };
+        stage.addEventListener('mousedown',start);
+        stage.addEventListener('mousemove',move);
+        window.addEventListener('mouseup',end);
+        stage.addEventListener('touchstart',start,{passive:false});
+        stage.addEventListener('touchmove',move,{passive:false});
+        window.addEventListener('touchend',end);
+        // 리사이즈 대응
+        window.addEventListener('resize',function(){
+            if(!modal.classList.contains('active')||!img) return;
+            var prev={x:crop.x/dispW, y:crop.y/dispH, w:crop.w/dispW, h:crop.h/dispH};
+            layoutAndDraw();
+            crop.x=Math.round(prev.x*dispW);
+            crop.y=Math.round(prev.y*dispH);
+            crop.w=Math.round(prev.w*dispW);
+            crop.h=Math.round(prev.h*dispH);
+            clampCrop();
+            updateCropDom();
+        });
+    }
+
+    function getPoint(e){
+        if(e.touches&&e.touches[0]) return {x:e.touches[0].clientX,y:e.touches[0].clientY};
+        if(e.changedTouches&&e.changedTouches[0]) return {x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY};
+        return {x:e.clientX,y:e.clientY};
+    }
+
+    // ─── 버튼 핸들러 ───
+    function onRotate(){
+        rotation=(rotation+90)%360;
+        layoutAndDraw();
+        resetCropBox();
+    }
+
+    function onSkip(){
+        var cb=resolveCb;
+        close();
+        if(cb) cb(originalFile);
+    }
+
+    function onDone(){
+        // 크롭 + 회전을 원본 해상도 기준으로 다시 그려서 JPEG Blob 생성
+        var finalCanvas=document.createElement('canvas');
+        var rw=(rotation%180===0)?natW:natH;
+        var rh=(rotation%180===0)?natH:natW;
+        // canvas 표시 좌표 → 원본 좌표 매핑 비율
+        var ratio=rw/dispW; // dispW:dispH == rw:rh 이므로 비율 하나면 충분
+        var sx=Math.round(crop.x*ratio);
+        var sy=Math.round(crop.y*ratio);
+        var sw=Math.max(1,Math.round(crop.w*ratio));
+        var sh=Math.max(1,Math.round(crop.h*ratio));
+        finalCanvas.width=sw;
+        finalCanvas.height=sh;
+        var fctx=finalCanvas.getContext('2d');
+        // 회전 적용된 "가상 원본(rw×rh)"를 만들기 위해 중간 캔버스 사용
+        var mid=document.createElement('canvas');
+        mid.width=rw; mid.height=rh;
+        var mctx=mid.getContext('2d');
+        mctx.save();
+        mctx.translate(rw/2,rh/2);
+        mctx.rotate(rotation*Math.PI/180);
+        mctx.drawImage(img,-natW/2,-natH/2,natW,natH);
+        mctx.restore();
+        // 중간 캔버스에서 크롭 영역을 최종 캔버스로 복사
+        fctx.drawImage(mid,sx,sy,sw,sh,0,0,sw,sh);
+        finalCanvas.toBlob(function(blob){
+            var cb=resolveCb;
+            if(!blob){ close(); if(cb) cb(originalFile); return; }
+            var baseName=(originalFile&&originalFile.name)||'edited.jpg';
+            var newName=baseName.replace(/\.(png|jpe?g|gif|webp|heic|heif|bmp)$/i,'')+'.jpg';
+            var outFile=new File([blob],newName,{type:'image/jpeg',lastModified:Date.now()});
+            close();
+            if(cb) cb(outFile);
+        },'image/jpeg',0.92);
+    }
+
+    return {openForFiles:openForFiles};
+})();
+
+// 편집기를 거친 뒤 기존 addFilesToList 흐름으로 넘겨주는 헬퍼
+function editThenAdd(files, onDone){
+    if(!files||!files.length){if(onDone)onDone([]);return;}
+    try{
+        ImageEditor.openForFiles(Array.prototype.slice.call(files)).then(function(editedFiles){
+            if(onDone) onDone(editedFiles||[]);
+        }).catch(function(){
+            if(onDone) onDone(Array.prototype.slice.call(files));
+        });
+    } catch(e){
+        // 편집기 로드 실패 시 원본 그대로 진행
+        if(onDone) onDone(Array.prototype.slice.call(files));
+    }
+}
+
 // ── 입력 안전성 검증 (8번: 콘텐츠 필터링 프런트 레이어) ──
 var MAX_INPUT_CHARS=2000;
 function checkInputSafety(text){
@@ -3656,8 +3969,10 @@ var MathInput={
         fileInput.addEventListener('change',function(e){
             var files=Array.from(e.target.files||[]);
             if(!files.length) return;
-            self.imageFiles=addFilesToList(self.imageFiles,files);
-            self._refreshThumbs();
+            editThenAdd(files,function(edited){
+                self.imageFiles=addFilesToList(self.imageFiles,edited);
+                self._refreshThumbs();
+            });
             fileInput.value='';
         });
 
@@ -3670,9 +3985,11 @@ var MathInput={
                     e.preventDefault();
                     var file=items[i].getAsFile();
                     if(!file) return;
-                    self.imageFiles=addFilesToList(self.imageFiles,[file]);
-                    self._refreshThumbs();
-                    toast('이미지가 붙여넣어졌어요! 📸');
+                    editThenAdd([file],function(edited){
+                        self.imageFiles=addFilesToList(self.imageFiles,edited);
+                        self._refreshThumbs();
+                        toast('이미지가 붙여넣어졌어요! 📸');
+                    });
                     return;
                 }
             }
@@ -4485,8 +4802,10 @@ var EngInput={
         fileInput.addEventListener('change',function(e){
             var files=Array.from(e.target.files||[]);
             if(!files.length) return;
-            self.imageFiles=addFilesToList(self.imageFiles,files);
-            self._refreshThumbs();
+            editThenAdd(files,function(edited){
+                self.imageFiles=addFilesToList(self.imageFiles,edited);
+                self._refreshThumbs();
+            });
             fileInput.value='';
         });
 
@@ -4499,9 +4818,11 @@ var EngInput={
                     e.preventDefault();
                     var file=items[i].getAsFile();
                     if(!file) return;
-                    self.imageFiles=addFilesToList(self.imageFiles,[file]);
-                    self._refreshThumbs();
-                    toast('이미지가 붙여넣어졌어요! 📸');
+                    editThenAdd([file],function(edited){
+                        self.imageFiles=addFilesToList(self.imageFiles,edited);
+                        self._refreshThumbs();
+                        toast('이미지가 붙여넣어졌어요! 📸');
+                    });
                     return;
                 }
             }
@@ -5232,8 +5553,10 @@ var KorInput={
         fileInput.addEventListener('change',function(e){
             var files=Array.from(e.target.files||[]);
             if(!files.length) return;
-            self.imageFiles=addFilesToList(self.imageFiles,files);
-            self._refreshThumbs();
+            editThenAdd(files,function(edited){
+                self.imageFiles=addFilesToList(self.imageFiles,edited);
+                self._refreshThumbs();
+            });
             fileInput.value='';
         });
 
@@ -5246,9 +5569,11 @@ var KorInput={
                     e.preventDefault();
                     var file=items[i].getAsFile();
                     if(!file) return;
-                    self.imageFiles=addFilesToList(self.imageFiles,[file]);
-                    self._refreshThumbs();
-                    toast('이미지가 붙여넣어졌어요! 📸');
+                    editThenAdd([file],function(edited){
+                        self.imageFiles=addFilesToList(self.imageFiles,edited);
+                        self._refreshThumbs();
+                        toast('이미지가 붙여넣어졌어요! 📸');
+                    });
                     return;
                 }
             }
@@ -5875,8 +6200,10 @@ var ProblemSolve={
                     if(f&&f.type&&f.type.indexOf('image/')===0) files.push(f);
                 }
                 if(!files.length) return;
-                self.imageFiles=addFilesToList(self.imageFiles,files);
-                self._refreshThumbs();
+                editThenAdd(files,function(edited){
+                    self.imageFiles=addFilesToList(self.imageFiles,edited);
+                    self._refreshThumbs();
+                });
                 try{fileInput.value='';}catch(err){}
             });
         }
@@ -5895,8 +6222,10 @@ var ProblemSolve={
                 }
                 if(files.length){
                     e.preventDefault();
-                    self.imageFiles=addFilesToList(self.imageFiles,files);
-                    self._refreshThumbs();
+                    editThenAdd(files,function(edited){
+                        self.imageFiles=addFilesToList(self.imageFiles,edited);
+                        self._refreshThumbs();
+                    });
                 }
             });
         }
@@ -6138,8 +6467,10 @@ var SocInput={
         socFileInput.addEventListener('change',function(e){
             var files=Array.from(e.target.files||[]);
             if(!files.length) return;
-            self.imageFiles=addFilesToList(self.imageFiles,files);
-            self._refreshThumbs();
+            editThenAdd(files,function(edited){
+                self.imageFiles=addFilesToList(self.imageFiles,edited);
+                self._refreshThumbs();
+            });
             socFileInput.value='';
         });
 
@@ -7128,9 +7459,11 @@ document.getElementById('sciConceptBack').addEventListener('click',function(){sh
     sciFileInput.addEventListener('change',function(e){
         var files=Array.from(e.target.files||[]);
         if(!files.length) return;
-        _sciImageFiles=addFilesToList(_sciImageFiles,files);
-        refresh();
-        sciImgBtn.style.display=_sciImageFiles.length?'block':'none';
+        editThenAdd(files,function(edited){
+            _sciImageFiles=addFilesToList(_sciImageFiles,edited);
+            refresh();
+            sciImgBtn.style.display=_sciImageFiles.length?'block':'none';
+        });
         sciFileInput.value='';
     });
 
@@ -8246,8 +8579,10 @@ var HisInput={
         hisFileInput.addEventListener('change',function(e){
             var files=Array.from(e.target.files||[]);
             if(!files.length) return;
-            self.imageFiles=addFilesToList(self.imageFiles,files);
-            self._refreshThumbs();
+            editThenAdd(files,function(edited){
+                self.imageFiles=addFilesToList(self.imageFiles,edited);
+                self._refreshThumbs();
+            });
             hisFileInput.value='';
         });
 
@@ -10299,6 +10634,28 @@ var Chat={
     }
 })();
 </script>
+
+<!-- ───────── Image Editor Modal (크롭/회전) ───────── -->
+<div class="imgedit-modal" id="imgeditModal" role="dialog" aria-label="사진 편집">
+    <div class="imgedit-header">
+        <span class="imgedit-header-title">✂️ 사진 편집</span>
+        <span class="imgedit-header-count" id="imgeditCount"></span>
+    </div>
+    <div class="imgedit-stage" id="imgeditStage">
+        <canvas class="imgedit-canvas" id="imgeditCanvas"></canvas>
+        <div class="imgedit-cropbox" id="imgeditCropbox">
+            <div class="imgedit-handle tl" data-h="tl"></div>
+            <div class="imgedit-handle tr" data-h="tr"></div>
+            <div class="imgedit-handle bl" data-h="bl"></div>
+            <div class="imgedit-handle br" data-h="br"></div>
+        </div>
+    </div>
+    <div class="imgedit-toolbar">
+        <button type="button" class="imgedit-btn imgedit-btn-rotate" id="imgeditRotate">↻ 90° 회전</button>
+        <button type="button" class="imgedit-btn imgedit-btn-skip" id="imgeditSkip">편집 없이 사용</button>
+        <button type="button" class="imgedit-btn imgedit-btn-done" id="imgeditDone">✓ 완료</button>
+    </div>
+</div>
 
 </body>
 </html>
