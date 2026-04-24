@@ -990,6 +990,35 @@
     </div>
 
     <!-- SETUP -->
+    <!-- BILLING — 결제수단 등록 (신규 가입자 필수 통과 화면 · Phase 1 UI) -->
+    <div class="screen setup-screen" id="screenBilling">
+        <div class="setup-logo">Studi<span>a</span></div>
+        <div style="font-size:2.2rem;margin:10px 0 6px;">🎁</div>
+        <h2 style="font-size:1.4rem;color:var(--navy-dark);margin:0 0 10px;font-weight:700;">7일 무료체험을 시작하세요</h2>
+        <p class="setup-desc" style="margin-bottom:6px;">결제수단을 등록하면 7일간 모든 기능을<br>무료로 이용할 수 있어요.</p>
+        <div class="setup-box" style="text-align:left;">
+            <ul style="list-style:none;padding:0;margin:0 0 18px;font-size:0.88rem;color:var(--text-secondary);line-height:1.7;">
+                <li style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;"><span style="color:var(--blue);font-weight:700;">•</span><span>7일 후 월 <b>18,900원</b>이 자동 청구됩니다</span></li>
+                <li style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;"><span style="color:var(--blue);font-weight:700;">•</span><span>체험 5일차부터 프로필 메뉴에서 해지할 수 있어요</span></li>
+                <li style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;"><span style="color:var(--blue);font-weight:700;">•</span><span>해지해도 남은 체험 기간은 끝까지 이용 가능</span></li>
+            </ul>
+            <button class="btn btn-primary btn-block" id="billingRegBtn" style="font-size:1.02rem;padding:14px 20px;">
+                💳 카드 등록하고 시작하기
+            </button>
+            <div style="margin-top:14px;padding:10px 12px;background:var(--blue-pale);border-radius:8px;font-size:0.76rem;color:var(--navy-dark);line-height:1.5;">
+                🔒 결제 정보는 <b>토스페이먼츠</b>가 직접 처리하며, Studia 서버에는 카드번호가 저장되지 않습니다.
+            </div>
+            <div style="margin-top:10px;padding:8px 12px;background:#fff6e5;border:1px dashed #d4a93a;border-radius:8px;font-size:0.74rem;color:#7a5100;text-align:center;line-height:1.5;">
+                (테스트 모드) 다음 단계에서 실제 토스 결제창이 열립니다
+            </div>
+            <div class="setup-legal-links" style="margin-top:16px;">
+                <a id="billingOpenTerms" tabindex="0" role="button">이용약관</a>
+                ·
+                <a id="billingOpenPrivacy" tabindex="0" role="button">개인정보 처리방침</a>
+            </div>
+        </div>
+    </div>
+
     <div class="screen setup-screen" id="screenSetup">
         <div class="setup-logo">Studi<span>a</span></div>
         <p class="setup-desc">AI 과외선생님을 시작하려면<br>Anthropic API 키를 입력해주세요.</p>
@@ -1025,6 +1054,22 @@
             </button>
             <div class="profile-menu" id="profileMenu" role="menu" hidden>
                 <div class="profile-menu-email" id="profileMenuEmail" style="padding:10px 14px 8px;font-size:0.78rem;color:var(--text-light);border-bottom:1px solid var(--border);word-break:break-all;line-height:1.4;display:none;"></div>
+                <!-- 무료체험 D-N 표시 (체험 중일 때만) -->
+                <div class="profile-menu-trial" id="profileMenuTrial" style="margin:6px;padding:10px 12px;background:var(--blue-pale);border-radius:8px;display:none;">
+                    <div style="font-weight:600;font-size:0.85rem;color:var(--navy-dark);">🎁 무료체험 <span id="profileTrialDN">D-?</span></div>
+                    <div style="font-size:0.74rem;color:var(--text-light);margin-top:2px;">다음 결제: <span id="profileTrialNext">—</span></div>
+                </div>
+                <!-- 구독 관리 -->
+                <button class="profile-menu-item" id="menuSubscription" role="menuitem">
+                    <span class="profile-menu-icon">💳</span>
+                    <span class="profile-menu-text">구독 관리</span>
+                </button>
+                <!-- 구독 해지 (체험 5일차부터 활성화) -->
+                <button class="profile-menu-item" id="menuCancel" role="menuitem" disabled aria-disabled="true" style="opacity:0.5;cursor:not-allowed;" title="체험 5일차부터 해지할 수 있어요">
+                    <span class="profile-menu-icon">❌</span>
+                    <span class="profile-menu-text">구독 해지</span>
+                </button>
+                <div style="height:1px;background:var(--border);margin:4px 6px;"></div>
                 <button class="profile-menu-item" id="menuLogout" role="menuitem">
                     <span class="profile-menu-icon">🚪</span>
                     <span class="profile-menu-text">로그아웃</span>
@@ -3479,6 +3524,37 @@ function _studiaAfterAuth(){
 
     // 저장된 키 자동 복원 — 체크박스 상태만 반영 (화면 전환은 _studiaAfterAuth가 담당)
     try{if(remember && localStorage.getItem('studia_key_persist')==='1') remember.checked=true;}catch(e){}
+})();
+
+// ════════════════════
+//  BILLING SCREEN (Phase 1 — 결제수단 등록 · UI stub)
+//  실제 토스페이먼츠 결제창 연동은 Phase 2에서 추가.
+//  테스트 경로: 앱 URL 뒤에 #billing 붙이면 이 화면을 직접 확인할 수 있음.
+// ════════════════════
+(function(){
+    var regBtn=document.getElementById('billingRegBtn');
+    var openTerms=document.getElementById('billingOpenTerms');
+    var openPrivacy=document.getElementById('billingOpenPrivacy');
+
+    if(regBtn){
+        regBtn.addEventListener('click',function(){
+            alert('(테스트 모드)\n\n다음 단계에서 토스페이먼츠 결제창이 열립니다.\n\n실제 카드 등록은 Phase 2에서 연결됩니다.');
+            try{window.Studia && window.Studia.track && window.Studia.track('billing_stub_click',{});}catch(e){}
+        });
+    }
+    // 기존 setupOpenTerms / setupOpenPrivacy 핸들러를 재활용해서 약관·개인정보 모달 열기
+    if(openTerms) openTerms.addEventListener('click',function(){try{document.getElementById('setupOpenTerms').click();}catch(e){}});
+    if(openPrivacy) openPrivacy.addEventListener('click',function(){try{document.getElementById('setupOpenPrivacy').click();}catch(e){}});
+
+    // 임시 테스트 경로: URL에 #billing 이 있으면 이 화면으로 강제 이동
+    //   예: https://studia.co.kr/app.html#billing
+    try{
+        if(window.location.hash==='#billing'){
+            setTimeout(function(){
+                if(typeof showScreen==='function') showScreen('screenBilling');
+            },500);
+        }
+    }catch(e){}
 })();
 
 // ════════════════════
@@ -9126,25 +9202,107 @@ document.getElementById('reportEmptyCta').addEventListener('click',function(){sh
 // Home button listener
 document.getElementById('btnWrongNote').addEventListener('click',function(){WrongNote.open();});
 document.getElementById('btnReport').addEventListener('click',function(){Report.open();});
-// 프로필 메뉴 + 로그아웃
+// 프로필 메뉴 + 로그아웃 + 무료체험 D-N + 구독 관리/해지 (Phase 1 UI)
 (function(){
     var btn=document.getElementById('btnProfile');
     var menu=document.getElementById('profileMenu');
     var logoutBtn=document.getElementById('menuLogout');
     var emailBox=document.getElementById('profileMenuEmail');
+    var trialBox=document.getElementById('profileMenuTrial');
+    var trialDN=document.getElementById('profileTrialDN');
+    var trialNext=document.getElementById('profileTrialNext');
+    var subBtn=document.getElementById('menuSubscription');
+    var cancelBtn=document.getElementById('menuCancel');
     if(!btn || !menu) return;
+
+    // 구독 상태 캐시 (구독 관리/해지 버튼 클릭 시 재사용)
+    var _subInfo=null;
+
+    function fmtKoreanDate(iso){
+        if(!iso) return '—';
+        try{
+            var d=new Date(iso);
+            return (d.getMonth()+1)+'월 '+d.getDate()+'일';
+        }catch(e){return '—';}
+    }
+
+    function setCancelEnabled(enabled,reason){
+        if(!cancelBtn) return;
+        if(enabled){
+            cancelBtn.disabled=false;
+            cancelBtn.removeAttribute('aria-disabled');
+            cancelBtn.style.opacity='1';
+            cancelBtn.style.cursor='pointer';
+            cancelBtn.title=reason||'구독을 해지합니다';
+        } else {
+            cancelBtn.disabled=true;
+            cancelBtn.setAttribute('aria-disabled','true');
+            cancelBtn.style.opacity='0.5';
+            cancelBtn.style.cursor='not-allowed';
+            cancelBtn.title=reason||'체험 5일차부터 해지할 수 있어요';
+        }
+    }
+
+    function updateTrialUI(info){
+        _subInfo=info;
+        if(!trialBox) return;
+        // 정보가 없거나 결제수단 미등록 → D-N 숨김, 해지 비활성
+        if(!info || !info.trial_ends_at || info.state==='needs_payment_method'){
+            trialBox.style.display='none';
+            setCancelEnabled(false,'체험 5일차부터 해지할 수 있어요');
+            return;
+        }
+        // 유료 구독자 → Pro 표시, 해지 가능
+        if(info.state==='subscribed'){
+            trialBox.style.display='block';
+            if(trialDN){trialDN.textContent='Pro 구독중';trialDN.style.color='var(--navy-dark)';}
+            if(trialNext) trialNext.textContent='다음 결제 '+fmtKoreanDate(info.trial_ends_at);
+            setCancelEnabled(true,'구독을 해지합니다');
+            return;
+        }
+        // 체험 중 → D-N 계산
+        var now=new Date();
+        var end=new Date(info.trial_ends_at);
+        var msLeft=end.getTime()-now.getTime();
+        var daysLeft=Math.ceil(msLeft/(24*60*60*1000));
+        if(daysLeft<0) daysLeft=0;
+        trialBox.style.display='block';
+        if(trialDN){
+            trialDN.textContent=(daysLeft===0?'오늘 자동결제':'D-'+daysLeft);
+            trialDN.style.color=(daysLeft<=1?'#c0392b':'var(--navy-dark)');
+        }
+        if(trialNext) trialNext.textContent=fmtKoreanDate(info.trial_ends_at);
+        // 해지 가능: 체험 5일차부터 = 남은일수 ≤ 3
+        if(daysLeft<=3){
+            setCancelEnabled(true,'체험 해지 (자동결제만 취소, 남은 기간은 이용 가능)');
+        } else {
+            setCancelEnabled(false,'체험 5일차부터 해지할 수 있어요');
+        }
+    }
+
+    function fetchSubscription(userId){
+        var s=window.Studia && window.Studia.sb;
+        if(!s || !userId) return;
+        try{
+            s.rpc('get_subscription_status',{p_user_id:userId}).then(function(r){
+                if(r && r.data) updateTrialUI(r.data);
+            }).catch(function(){});
+        }catch(e){}
+    }
 
     function openMenu(){
         menu.hidden=false;
         btn.setAttribute('aria-expanded','true');
-        // 현재 로그인 이메일 표시
         try{
             var s=window.Studia && window.Studia.sb;
-            if(s && emailBox){
+            if(s){
                 s.auth.getUser().then(function(r){
-                    if(r&&r.data&&r.data.user&&r.data.user.email){
-                        emailBox.textContent=r.data.user.email;
-                        emailBox.style.display='block';
+                    if(r&&r.data&&r.data.user){
+                        if(r.data.user.email && emailBox){
+                            emailBox.textContent=r.data.user.email;
+                            emailBox.style.display='block';
+                        }
+                        fetchSubscription(r.data.user.id);
                     }
                 });
             }
@@ -9158,7 +9316,6 @@ document.getElementById('btnReport').addEventListener('click',function(){Report.
         e.stopPropagation();
         if(menu.hidden) openMenu(); else closeMenu();
     });
-    // 외부 클릭 / ESC 로 닫기
     document.addEventListener('click',function(e){
         if(menu.hidden) return;
         if(!menu.contains(e.target) && e.target!==btn) closeMenu();
@@ -9166,6 +9323,33 @@ document.getElementById('btnReport').addEventListener('click',function(){Report.
     document.addEventListener('keydown',function(e){
         if(e.key==='Escape' && !menu.hidden) closeMenu();
     });
+
+    // 구독 관리 (Phase 1: stub alert)
+    if(subBtn){
+        subBtn.addEventListener('click',function(){
+            closeMenu();
+            var msg='💳 구독 관리\n\n';
+            if(!_subInfo || !_subInfo.trial_ends_at){
+                msg+='결제수단이 아직 등록되지 않았어요.';
+            } else if(_subInfo.state==='subscribed'){
+                msg+='Pro 구독중 (월 18,900원 정기결제)\n다음 결제일: '+fmtKoreanDate(_subInfo.trial_ends_at);
+            } else {
+                msg+='무료체험 중\n자동결제 예정일: '+fmtKoreanDate(_subInfo.trial_ends_at)+'\n결제 금액: 18,900원 (VAT 포함)';
+            }
+            msg+='\n\n(테스트 모드 — Phase 2에서 실제 토스 결제 정보와 연결됩니다)';
+            alert(msg);
+        });
+    }
+
+    // 구독 해지 (Phase 1: stub alert — 실제 해지 API는 Phase 2에서 연결)
+    if(cancelBtn){
+        cancelBtn.addEventListener('click',function(){
+            if(cancelBtn.disabled) return;
+            closeMenu();
+            if(!confirm('정말로 구독을 해지하시겠어요?\n\n• 자동결제가 취소됩니다.\n• 남은 체험 기간 동안은 계속 이용할 수 있어요.\n• 재가입은 언제든 가능합니다.')) return;
+            alert('(테스트 모드)\n\n해지 요청이 접수되었어요.\n실제 해지 연동은 Phase 2에서 추가됩니다.');
+        });
+    }
 
     if(logoutBtn){
         logoutBtn.addEventListener('click',function(){
@@ -9730,24 +9914,24 @@ var Chat={
 
             <h4>제6조 (이용료 및 결제)</h4>
             <ul>
-                <li>본 서비스는 월 정기결제(구독) 방식으로 제공됩니다.</li>
-                <li>이용료는 월 18,900원(부가세 포함)입니다. 이용료는 운영자의 정책에 따라 변경될 수 있으며, 변경 시 제3조에 따라 사전 공지됩니다.</li>
-                <li>결제는 토스페이먼츠(주)를 통해 처리되며, 구체적인 결제 수단 및 절차는 결제 화면에 명시됩니다.</li>
+                <li>본 서비스는 월 정기결제(구독) 방식으로 제공되며, 월 구독료는 <b>18,900원(VAT 포함)</b>입니다.</li>
+                <li>결제는 토스페이먼츠(주)를 통해 월 자동 정기결제 방식으로 처리됩니다. 결제수단은 토스페이먼츠가 지원하는 국내 신용·체크카드이며, 해외카드 및 영수증 발급 정책은 토스페이먼츠 약관에 따릅니다.</li>
+                <li>이용료는 운영자의 정책에 따라 변경될 수 있으며, 변경 시 제3조에 따라 사전 공지됩니다.</li>
             </ul>
 
             <h4>제7조 (무료 체험 및 자동 결제 전환)</h4>
             <ul>
-                <li>신규 회원은 최초 가입 시 7일간 무료 체험 기간을 제공받습니다.</li>
-                <li>무료 체험 기간 동안은 결제 수단 등록 없이 유료 기능을 이용할 수 있으며, 7일 경과 후에는 서비스 이용이 자동 중단됩니다.</li>
-                <li>회원이 계속 이용을 원할 경우 결제 수단을 등록해야 하며, 그 시점부터 정기결제가 시작됩니다.</li>
+                <li>신규 회원은 결제수단(신용·체크카드 등) 등록 완료 시점부터 <b>7일간의 무료 체험</b>을 제공받습니다.</li>
+                <li>무료 체험 종료일 0시에 등록된 결제수단으로 월 이용료가 자동 청구되며, 그 시점부터 유료 정기결제가 개시됩니다. 자동 결제 개시 3일 전에 이메일로 사전 안내합니다.</li>
+                <li>회원은 무료 체험 개시일을 1일차로 하여 <b>5일차 00시부터</b> 서비스 내 프로필 메뉴에서 해지할 수 있으며, 해지 시 자동결제는 진행되지 않고 남은 체험 기간 동안은 계속 이용할 수 있습니다. 4일차 이내에는 해지 기능이 제공되지 않습니다.</li>
+                <li>본 조항은 본 약관 시행일(2026년 4월 25일) 이후 신규 가입 회원부터 적용됩니다.</li>
             </ul>
 
             <h4>제8조 (해지 및 환불)</h4>
             <ul>
-                <li>회원은 언제든지 서비스 내 설정 메뉴에서 구독을 해지할 수 있습니다.</li>
-                <li>해지 시 다음 결제일부터 청구가 중단되며, 해지 시점까지의 기간은 계속 이용할 수 있습니다.</li>
-                <li>이미 결제된 당월 이용료는 「전자상거래 등에서의 소비자보호에 관한 법률」 제17조에 따른 청약철회 요건에 해당하는 경우 환불될 수 있으며, 회원이 서비스를 이미 이용한 경우 동법에 따라 환불이 제한될 수 있습니다.</li>
-                <li>운영자의 귀책사유로 서비스 이용이 불가능한 경우 이용료 일부 또는 전액이 환불될 수 있습니다.</li>
+                <li>회원은 서비스 내 프로필 메뉴의 "구독 관리"를 통해 해지할 수 있습니다. 해지 시 다음 결제 예정일부터 청구가 중단되며, 당월 이용기간이 끝날 때까지는 서비스를 계속 이용할 수 있습니다. 단, 무료 체험 기간 중 해지 조건은 제7조에 따릅니다.</li>
+                <li>「전자상거래 등에서의 소비자보호에 관한 법률」 제17조에 따라, 결제일로부터 7일 이내이고 서비스를 실질적으로 이용하지 않은 경우 청약철회를 통해 전액 환불받을 수 있습니다.</li>
+                <li>이미 실질적으로 이용된 회차의 구독료는 환불되지 않음이 원칙이나, 운영자의 중대한 귀책사유로 서비스 이용이 불가능했던 경우 일할 환불합니다.</li>
             </ul>
 
             <h4>제9조 (서비스의 변경 및 중단)</h4>
@@ -9783,8 +9967,8 @@ var Chat={
             <p>본 약관은 대한민국 법령에 따라 해석됩니다. 서비스 이용과 관련하여 분쟁이 발생할 경우 운영자와 회원은 원만한 해결을 위해 성실히 협의하며, 협의로 해결되지 않을 경우 민사소송법상 관할 법원을 전속적 관할로 합니다.</p>
 
             <p style="color:var(--text-light);font-size:0.8rem;margin-top:16px;">
-                부칙: 본 약관은 2026년 4월 23일부터 시행됩니다.<br>
-                최종 개정일: 2026-04-23
+                부칙: 본 약관은 2026년 4월 25일부터 시행됩니다.<br>
+                최종 개정일: 2026-04-25
             </p>
         </div>
         <div class="legal-modal-footer">
