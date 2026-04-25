@@ -3897,6 +3897,15 @@ function _authClear(){var e=document.getElementById('authErr');if(e){e.style.dis
         sb.auth.onAuthStateChange(function(event){
             if(event==='SIGNED_OUT'){
                 try{if(window.Studia&&window.Studia.clearKey)window.Studia.clearKey();}catch(e){}
+                // 오답노트 메모리 캐시 비우기 (다른 사용자 데이터가 보이지 않도록)
+                try{
+                    if(typeof WrongNote!=='undefined'){
+                        WrongNote.data=[];
+                        WrongNote._loaded=false;
+                        WrongNote._loading=null;
+                        WrongNote.updateBadge();
+                    }
+                }catch(e){}
                 showScreen('screenAuth');
             }
         });
@@ -3908,6 +3917,8 @@ function _studiaAfterAuth(){
     // 이전 버전에서 브라우저에 저장되었던 Anthropic 키가 있다면 보안상 정리한다.
     try{localStorage.removeItem('studia_key');localStorage.removeItem('studia_key_persist');}catch(e){}
     try{sessionStorage.removeItem('studia_key');}catch(e){}
+    // 오답노트를 클라우드에서 불러옴 (이전 localStorage 데이터가 있으면 자동 마이그레이션)
+    try{if(typeof WrongNote!=='undefined' && WrongNote._load){WrongNote._load();}}catch(e){}
     showScreen('screenHome');
 }
 
@@ -9068,49 +9079,141 @@ document.getElementById('hisOpenChat').addEventListener('click',function(){Chat.
 // ════════════════════
 //  오답노트 MODULE
 // ════════════════════
-// 영속화: localStorage (임시). 서버 DB 전환 시 _load/_save만 교체하면 됨.
-var WRONG_NOTE_KEY='studia_wrongnote_v1';
-var WRONG_NOTE_MAX=500;          // 최대 저장 개수 (초과 시 오래된 것부터 제거)
-var WRONG_NOTE_VERSION=1;        // 스키마 버전 (향후 마이그레이션용)
+// 영속화: Supabase wrong_notes 테이블. 2026-04-25 클라우드 동기화 도입.
+// (구버전: localStorage WRONG_NOTE_KEY — 첫 로드 시 자동 마이그레이션 후 제거)
+var WRONG_NOTE_KEY='studia_wrongnote_v1';   // 레거시 키 (마이그레이션 전용)
+var WRONG_NOTE_MAX=500;                     // 메모리 캐시 최대 보유 (오래된 것부터 트림)
+var WRONG_NOTE_VERSION=2;                   // v1=localStorage, v2=DB
 
 var WrongNote={
-    data:[], // {subject,question,myAnswer,correctAnswer,explanation,concept,timestamp}
+    data:[],                  // {id?,subject,question,myAnswer,correctAnswer,explanation,concept,options,correctIdx,timestamp}
+    _loaded:false,            // _load() 완료 여부
+    _loading:null,            // 진행 중인 load Promise (중복 방지)
 
-    // ── 영속화 레이어 ──
-    _save:function(){
-        try{
-            var payload={v:WRONG_NOTE_VERSION,data:this.data};
-            localStorage.setItem(WRONG_NOTE_KEY,JSON.stringify(payload));
-            return true;
-        }catch(e){
-            // QuotaExceededError 등
-            if(e && /quota|QUOTA/i.test(e.name||e.message||'')){
-                toast('저장 공간이 부족해요. 오래된 오답을 일부 정리해줘!');
-                try{window.Studia && window.Studia.track && window.Studia.track('wrongnote_quota_exceeded',{count:this.data.length});}catch(x){}
-            } else {
-                try{window.Studia && window.Studia.track && window.Studia.track('wrongnote_save_error',{msg:(e&&e.message)||''});}catch(x){}
-            }
-            return false;
-        }
+    // ── DB row → 클라이언트 객체 변환 ──
+    _fromDbRow:function(r){
+        return {
+            id: r.id,
+            subject: r.subject,
+            question: r.question||'',
+            myAnswer: r.my_answer||'',
+            correctAnswer: r.correct_answer||'',
+            explanation: r.explanation||'',
+            concept: r.concept||'',
+            options: r.options||null,
+            correctIdx: (typeof r.correct_idx==='number')?r.correct_idx:-1,
+            timestamp: r.client_timestamp || (r.created_at?new Date(r.created_at).getTime():Date.now())
+        };
     },
+
+    // ── 클라이언트 객체 → DB insert 페이로드 ──
+    _toDbRow:function(d){
+        return {
+            subject: d.subject,
+            question: d.question||'',
+            my_answer: d.myAnswer||'',
+            correct_answer: d.correctAnswer||'',
+            explanation: d.explanation||'',
+            concept: d.concept||'',
+            options: d.options||null,
+            correct_idx: (typeof d.correctIdx==='number')?d.correctIdx:-1,
+            client_timestamp: d.timestamp || Date.now()
+        };
+    },
+
+    // ── localStorage → DB 일회성 마이그레이션 (성공 시 localStorage 키 제거) ──
+    _migrateFromLocalStorage:function(sb){
+        var self=this;
+        return new Promise(function(resolve){
+            var raw=null;
+            try{raw=localStorage.getItem(WRONG_NOTE_KEY);}catch(e){resolve();return;}
+            if(!raw){resolve();return;}
+            var arr=null;
+            try{
+                var parsed=JSON.parse(raw);
+                arr=(parsed && parsed.v && Array.isArray(parsed.data))?parsed.data
+                    :(Array.isArray(parsed)?parsed:[]);
+            }catch(e){
+                // 손상된 데이터 → 무시하고 키 제거
+                try{localStorage.removeItem(WRONG_NOTE_KEY);}catch(x){}
+                resolve();return;
+            }
+            if(!arr || arr.length===0){
+                try{localStorage.removeItem(WRONG_NOTE_KEY);}catch(x){}
+                resolve();return;
+            }
+            // 배치 분할 (한 번에 너무 많이 보내지 않도록 100개씩)
+            var rows=arr.map(self._toDbRow.bind(self));
+            sb.from('wrong_notes').insert(rows).then(function(resp){
+                if(resp.error){
+                    console.warn('[WrongNote] migration insert failed:',resp.error);
+                    // 실패 시 localStorage 유지 → 다음 로드에서 재시도
+                    resolve();return;
+                }
+                try{localStorage.removeItem(WRONG_NOTE_KEY);}catch(x){}
+                try{toast('이전 오답노트 '+arr.length+'개를 클라우드로 옮겼어! ☁️');}catch(x){}
+                try{window.Studia && window.Studia.track && window.Studia.track('wrongnote_migrated',{count:arr.length});}catch(x){}
+                resolve();
+            }).catch(function(e){
+                console.warn('[WrongNote] migration exception:',e);
+                resolve(); // 실패해도 다음 단계 진행
+            });
+        });
+    },
+
+    // ── DB → 로컬 캐시 로드 ──
     _load:function(){
-        try{
-            var raw=localStorage.getItem(WRONG_NOTE_KEY);
-            if(!raw) return;
-            var parsed=JSON.parse(raw);
-            // 버전 분기 (향후 마이그레이션 대비)
-            if(parsed && parsed.v && Array.isArray(parsed.data)){
-                this.data=parsed.data;
-            } else if(Array.isArray(parsed)){
-                // 레거시(v1 이전) 배열 형식도 수용
-                this.data=parsed;
+        if(this._loading) return this._loading;
+        var self=this;
+        this._loading=new Promise(function(resolve){
+            var sb=(window.Studia && window.Studia.sb) || null;
+            if(!sb){
+                self._loaded=true;
+                self._loading=null;
+                resolve();return;
             }
-            this.updateBadge();
-        }catch(e){
-            // 손상된 데이터는 무시하고 빈 상태로 시작
-            try{window.Studia && window.Studia.track && window.Studia.track('wrongnote_load_error',{msg:(e&&e.message)||''});}catch(x){}
-        }
+            sb.auth.getSession().then(function(sessRes){
+                if(!sessRes || !sessRes.data || !sessRes.data.session){
+                    // 로그인 안 됨 → 빈 상태
+                    self.data=[];
+                    self._loaded=true;
+                    self.updateBadge();
+                    self._loading=null;
+                    resolve();return;
+                }
+                // 1) localStorage → DB 마이그레이션 (있을 때만, 한 번만)
+                self._migrateFromLocalStorage(sb).then(function(){
+                    // 2) DB에서 본인 오답 모두 가져오기 (오래된 → 최신 순)
+                    return sb.from('wrong_notes').select('*').order('created_at',{ascending:true});
+                }).then(function(resp){
+                    if(resp && resp.error){
+                        console.warn('[WrongNote] load failed:',resp.error);
+                        self.data=[];
+                    } else {
+                        self.data=(resp && resp.data ? resp.data : []).map(self._fromDbRow);
+                    }
+                    self._loaded=true;
+                    self.updateBadge();
+                    self._loading=null;
+                    resolve();
+                }).catch(function(e){
+                    console.warn('[WrongNote] load exception:',e);
+                    self._loaded=true;
+                    self._loading=null;
+                    resolve();
+                });
+            }).catch(function(e){
+                console.warn('[WrongNote] getSession failed:',e);
+                self._loaded=true;
+                self._loading=null;
+                resolve();
+            });
+        });
+        return this._loading;
     },
+
+    // ── 레거시 호환 (사용 안 함) ──
+    _save:function(){return true;},
     _trim:function(){
         // 최대 개수 초과 시 오래된 것부터 제거
         if(this.data.length>WRONG_NOTE_MAX){
@@ -9119,7 +9222,9 @@ var WrongNote={
     },
 
     add:function(subject,question,myAnswer,correctAnswer,explanation,concept,options,correctIdx){
-        this.data.push({
+        var self=this;
+        // 1) 낙관적 UI: 로컬 캐시에 먼저 push
+        var item={
             subject:subject,
             question:question||'',
             myAnswer:myAnswer||'',
@@ -9129,12 +9234,20 @@ var WrongNote={
             options:options||null,
             correctIdx:(typeof correctIdx==='number')?correctIdx:-1,
             timestamp:Date.now()
-        });
+        };
+        this.data.push(item);
         this._trim();
-        this._save();
         this.updateBadge();
         toast('오답노트에 저장했어! 📓');
         try{window.Studia && window.Studia.track && window.Studia.track('wrongnote_add',{subject:subject,total:this.data.length});}catch(e){}
+        // 2) 백그라운드로 DB INSERT (실패해도 사용자 흐름은 막지 않음)
+        var sb=(window.Studia && window.Studia.sb) || null;
+        if(sb){
+            sb.from('wrong_notes').insert(this._toDbRow(item)).select().single().then(function(resp){
+                if(resp && resp.error){console.warn('[WrongNote] add DB failed:',resp.error.message||resp.error);return;}
+                if(resp && resp.data){item.id=resp.data.id;}
+            }).catch(function(e){console.warn('[WrongNote] add DB exception:',e);});
+        }
     },
 
     // ── 백업: JSON 파일로 내보내기 ──
@@ -9166,31 +9279,91 @@ var WrongNote={
         return new Promise(function(resolve,reject){
             if(!file){reject(new Error('파일이 없어요'));return;}
             if(file.size>5*1024*1024){toast('파일이 너무 커요 (5MB 이하)');reject(new Error('too large'));return;}
+            var sb=(window.Studia && window.Studia.sb) || null;
+            if(!sb){toast('로그인 후에 복원할 수 있어요.');reject(new Error('no auth'));return;}
             var reader=new FileReader();
             reader.onload=function(){
                 try{
                     var parsed=JSON.parse(reader.result);
                     var arr=(parsed && Array.isArray(parsed.data))?parsed.data:(Array.isArray(parsed)?parsed:null);
                     if(!arr){toast('올바른 백업 파일이 아니에요.');reject(new Error('invalid'));return;}
+
+                    // 정규화 (옛 백업의 필드 누락 대비)
+                    var norm=arr.map(function(d){
+                        return {
+                            subject:d.subject||'',
+                            question:d.question||'',
+                            myAnswer:d.myAnswer||'',
+                            correctAnswer:d.correctAnswer||'',
+                            explanation:d.explanation||'',
+                            concept:d.concept||'',
+                            options:d.options||null,
+                            correctIdx:(typeof d.correctIdx==='number')?d.correctIdx:-1,
+                            timestamp:d.timestamp||Date.now()
+                        };
+                    }).filter(function(d){return d.subject && d.question;});
+
+                    var newRows;
+                    var deletePromise;
                     if(mode==='replace'){
-                        self.data=arr.slice();
+                        newRows=norm.slice();
+                        // 본인 행 모두 삭제 (RLS가 user_id 매칭 자동 처리)
+                        deletePromise=sb.from('wrong_notes').delete().neq('id',-1);
                     } else {
-                        // 중복 방지: question+timestamp 조합으로 키 생성
+                        // merge: 기존 + 중복 제거
                         var keys={};
                         self.data.forEach(function(d){keys[(d.question||'')+'|'+(d.timestamp||0)]=true;});
-                        arr.forEach(function(d){
+                        newRows=[];
+                        norm.forEach(function(d){
                             var k=(d.question||'')+'|'+(d.timestamp||0);
-                            if(!keys[k]){self.data.push(d);keys[k]=true;}
+                            if(!keys[k]){newRows.push(d);keys[k]=true;}
                         });
+                        deletePromise=Promise.resolve({error:null});
                     }
-                    self._trim();
-                    self._save();
-                    self.updateBadge();
-                    self.renderFilter();
-                    self.render(null);
-                    toast('복원 완료! ('+self.data.length+'개)');
-                    try{window.Studia && window.Studia.track && window.Studia.track('wrongnote_import',{count:arr.length,mode:mode});}catch(e){}
-                    resolve(self.data.length);
+                    // 최대 개수 초과 방지: 오래된 것부터 잘라냄
+                    var combined=(mode==='replace')?newRows.slice():self.data.concat(newRows);
+                    if(combined.length>WRONG_NOTE_MAX){
+                        combined=combined.slice(-WRONG_NOTE_MAX);
+                    }
+
+                    deletePromise.then(function(delResp){
+                        if(delResp && delResp.error){throw delResp.error;}
+                        // INSERT — replace 모드면 combined 전체, merge 모드면 newRows 만
+                        var toInsert=(mode==='replace'?combined:newRows).map(function(d){return self._toDbRow(d);});
+                        if(toInsert.length===0){
+                            self.data=combined;
+                            self.updateBadge();
+                            self.renderFilter();
+                            self.render(null);
+                            toast('복원 완료! ('+self.data.length+'개)');
+                            resolve(self.data.length);
+                            return;
+                        }
+                        return sb.from('wrong_notes').insert(toInsert).select().then(function(insResp){
+                            if(insResp && insResp.error){throw insResp.error;}
+                            // DB가 부여한 id 와 client_timestamp 로 다시 매핑
+                            var inserted=(insResp && insResp.data)||[];
+                            var byKey={};
+                            inserted.forEach(function(r){
+                                byKey[(r.question||'')+'|'+(r.client_timestamp||0)]={id:r.id};
+                            });
+                            combined.forEach(function(d){
+                                var k=(d.question||'')+'|'+(d.timestamp||0);
+                                if(byKey[k]){d.id=byKey[k].id;}
+                            });
+                            self.data=combined;
+                            self.updateBadge();
+                            self.renderFilter();
+                            self.render(null);
+                            toast('복원 완료! ('+self.data.length+'개)');
+                            try{window.Studia && window.Studia.track && window.Studia.track('wrongnote_import',{count:arr.length,mode:mode});}catch(e){}
+                            resolve(self.data.length);
+                        });
+                    }).catch(function(e){
+                        console.warn('[WrongNote] importBackup failed:',e);
+                        toast('복원 중 오류가 발생했어요. 다시 시도해줘.');
+                        reject(e);
+                    });
                 }catch(e){
                     toast('파일을 읽을 수 없어요. 백업 파일이 손상됐을 수 있어요.');
                     reject(e);
@@ -9282,12 +9455,24 @@ document.getElementById('wrongNoteBack').addEventListener('click',function(){sho
 document.getElementById('wrongNoteClear').addEventListener('click',function(){
     if(WrongNote.data.length===0){toast('비울 오답이 없어요!');return;}
     if(!confirm('오답노트 '+WrongNote.data.length+'개를 모두 지울까? (되돌릴 수 없어요)\n먼저 "내보내기"로 백업하는 걸 추천해!')) return;
-    WrongNote.data=[];
-    WrongNote._save();
-    WrongNote.updateBadge();
-    WrongNote.render(null);
-    toast('오답노트를 비웠어요 🗑️');
-    try{window.Studia && window.Studia.track && window.Studia.track('wrongnote_clear',{});}catch(e){}
+    var sb=(window.Studia && window.Studia.sb) || null;
+    if(!sb){toast('로그인 후에 비울 수 있어요.');return;}
+    var prevCount=WrongNote.data.length;
+    sb.from('wrong_notes').delete().neq('id',-1).then(function(resp){
+        if(resp && resp.error){
+            console.warn('[WrongNote] clear DB failed:',resp.error.message||resp.error);
+            toast('비우기 중 오류가 발생했어요. 다시 시도해줘.');
+            return;
+        }
+        WrongNote.data=[];
+        WrongNote.updateBadge();
+        WrongNote.render(null);
+        toast('오답노트를 비웠어요 🗑️');
+        try{window.Studia && window.Studia.track && window.Studia.track('wrongnote_clear',{count:prevCount});}catch(e){}
+    }).catch(function(e){
+        console.warn('[WrongNote] clear exception:',e);
+        toast('비우기 중 오류가 발생했어요.');
+    });
 });
 
 // 백업 내보내기/불러오기 버튼 바인딩 (요소는 아래 HTML 패치에서 추가)
@@ -9307,8 +9492,8 @@ document.addEventListener('DOMContentLoaded',function(){
     }
 });
 
-// 페이지 로드 시 저장된 오답노트 복원
-WrongNote._load();
+// 페이지 로드 시 자동 호출은 하지 않음 — 로그인 완료 후 _studiaAfterAuth()에서 호출
+// (DB 기반이므로 user_id 가 있어야 의미 있음)
 
 (function(){
     var scroll=document.querySelector('#screenWrongNote .scroll-area');
