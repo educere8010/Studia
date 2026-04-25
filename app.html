@@ -9545,6 +9545,9 @@ var WrongNote={
             h+='</div></div>';
         }
         list.innerHTML=h;
+        // 해설/문제에 포함된 LaTeX($...$) 수식을 KaTeX 로 렌더링.
+        // (display:none 인 해설 div 도 innerHTML 단계에서 함께 변환됨)
+        try{ if(typeof renderKaTeX==='function') renderKaTeX(list); }catch(e){}
     },
 
     renderFilter:function(){
