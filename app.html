@@ -8327,7 +8327,18 @@ function createQuizModule(cfg){
                     self.total=data.questions.length;
                     self._render(data);
                 } else {
-                    document.getElementById(cfg.contentId).innerHTML='<div class="analysis-card"><p style="white-space:pre-wrap;">'+escHtml(response)+'</p></div>';
+                    // 파싱 실패 시: raw JSON 노출 금지. 친절한 안내 + 재시도 버튼.
+                    var fallbackId=cfg.qPrefix+'_retryBtn';
+                    document.getElementById(cfg.contentId).innerHTML=
+                        '<div class="analysis-card" style="text-align:center;padding:32px 20px;">'
+                        +'<div style="font-size:2.5rem;margin-bottom:12px;">😅</div>'
+                        +'<div style="font-weight:700;font-size:1.05rem;margin-bottom:8px;">퀴즈 생성에 실패했어요</div>'
+                        +'<div style="color:var(--text-secondary);font-size:0.92rem;margin-bottom:20px;line-height:1.55;">AI 응답이 도중에 끊어졌거나<br>형식이 어긋났어요. 잠시 후 다시 시도해 주세요.</div>'
+                        +'<button class="btn btn-primary" id="'+fallbackId+'" style="max-width:240px;margin:0 auto;display:block;">🔄 다시 시도하기</button>'
+                        +'</div>';
+                    var rb=document.getElementById(fallbackId);
+                    if(rb){rb.addEventListener('click',function(){self.startQuiz();});}
+                    try{window.Studia && window.Studia.track && window.Studia.track('quiz_parse_failed',{subject:self.selectedSubject||'',module:cfg.wrongNoteSubject||''});}catch(e){}
                 }
             }).catch(function(err){
                 document.getElementById(cfg.loadingId).classList.add('hidden');
@@ -8508,7 +8519,7 @@ var SocQuiz=createQuizModule({
     subjectGridId:'socQuizSubjects', topicId:'socQuizTopic', startBtnId:'socQuizStart',
     subjectHTML:socSubjectsHTML.replace('GRID_ID','socQuizSubjects'),
     placeholder:'예: 민주주의, 시장경제, 기후...', startLabel:'퀴즈 시작하기',
-    systemPrompt:'너는 Studia의 사회 AI 과외선생님이야.\n\n학생이 과목과 주제를 주면 퀴즈 5문제를 JSON으로 응답해. 다른 텍스트 금지.\n\n형식:\n{"subject":"과목","topic":"주제","questions":[{"question":"문제","options":["①...","②...","③...","④..."],"answer":"정답 (①②③④ 중 하나)","explanation":"해설"}]}\n\n원칙:\n1. 4지선다 5문제. 수능/학평 수준.\n2. 개념의 정확한 이해와 적용을 평가.\n3. 해설은 틀린 이유까지 설명.\n4. 친근한 반말, 이모지 적절히.\n5. JSON만 출력. 마크다운 코드블록 쓰지 마.',
+    systemPrompt:'너는 Studia의 사회 AI 과외선생님이야.\n\n학생이 과목과 주제를 주면 퀴즈 5문제를 JSON으로 응답해. 다른 텍스트 금지.\n\n형식:\n{"subject":"과목","topic":"주제","questions":[{"question":"문제","options":["①...","②...","③...","④..."],"answer":"정답 (①②③④ 중 하나)","explanation":"해설"}]}\n\n원칙:\n1. 4지선다 5문제. 수능/학평 수준.\n2. 개념의 정확한 이해와 적용을 평가.\n3. 해설은 틀린 이유까지 설명. 다만 한 문제당 explanation은 150자 이내로 간결하게.\n4. 친근한 반말, 이모지 적절히 (단, 너무 많이 쓰지 않기).\n5. JSON만 출력. 마크다운 코드블록 쓰지 마.\n6. 응답 전체는 반드시 완결된 JSON 으로 끝낼 것 (중간에 끊지 말 것).',
     promptSuffix:'과목 퀴즈 5문제를 만들어줘.',
     errorMsg:'퀴즈 생성 중 오류가 발생했어요.',
     emoji:'🌍 퀴즈', qPrefix:'socQ', expPrefix:'socQExp',
@@ -8525,7 +8536,7 @@ var SocExam=createQuizModule({
     subjectGridId:'socExamSubjects', topicId:'socExamTopic', startBtnId:'socExamStart',
     subjectHTML:socSubjectsHTML.replace('GRID_ID','socExamSubjects').replace('<button class="sci-subject-btn" data-sci="중등사회"><span class="sci-sub-icon">🌱</span><span class="sci-sub-name">중등사회</span></button>',''),
     placeholder:'예: 민주주의, 시장경제, 기후...', startLabel:'수능·학평 풀기',
-    systemPrompt:'너는 Studia의 사회 AI 과외선생님이야.\n\n학생이 과목과 주제를 주면 수능·학평 5문제를 JSON으로 응답해. 다른 텍스트 금지.\n\n형식:\n{"subject":"과목","topic":"주제","questions":[{"type":"자료분석|개념적용|사례판단","question":"문제 (자료/표/그래프 설명 포함)","options":["①...","②...","③...","④...","⑤..."],"answer":"정답 (①②③④⑤ 중 하나)","explanation":"해설","svg":"(선택)","chart":{}}]}\n\n원칙:\n1. 5지선다 5문제. 수능/학평 실전 수준.\n2. 자료분석, 개념적용, 사례판단 타입 혼합.\n3. 문제에 표/자료/사례 설명 포함.\n4. 해설은 상세하고 틀린 이유까지 설명.\n5. 친근한 반말, 이모지 적절히.\n6. JSON만 출력. 마크다운 코드블록 쓰지 마.\n\n[시각 자료 규칙 — 매우 중요]\n- 자료·그래프·지도·도표가 있어야만 풀 수 있는 문제는 "chart" 또는 "svg" 필드를 반드시 채울 것.\n- 시각 자료를 만들 자신이 없으면 그 문제 자체를 포기하고, 텍스트만으로 풀 수 있는 개념·사례 문제로 대체할 것.\n- "다음 자료를 보고", "아래 그래프에서", "제시된 지도는" 같이 자료를 참조하면서 chart/svg를 비우는 것은 절대 금지. 학생이 문제를 풀 수 없음.\n- 막대/선/원/산점도는 "chart":{"type":"bar|line|pie|scatter","labels":[...],"datasets":[{"label":"...","data":[...]}]} 로 출력.\n- 지도·다이어그램·개념도·모식도는 "svg" 필드에 SVG 코드. viewBox="0 0 400 300", font-family="sans-serif" font-size="13". <script>·on* 이벤트 금지.\n- 텍스트만으로 충분한 개념 문제는 시각 자료 생략.',
+    systemPrompt:'너는 Studia의 사회 AI 과외선생님이야.\n\n학생이 과목과 주제를 주면 수능·학평 5문제를 JSON으로 응답해. 다른 텍스트 금지.\n\n형식:\n{"subject":"과목","topic":"주제","questions":[{"type":"자료분석|개념적용|사례판단","question":"문제 (자료/표/그래프 설명 포함)","options":["①...","②...","③...","④...","⑤..."],"answer":"정답 (①②③④⑤ 중 하나)","explanation":"해설","svg":"(선택)","chart":{}}]}\n\n원칙:\n1. 5지선다 5문제. 수능/학평 실전 수준.\n2. 자료분석, 개념적용, 사례판단 타입 혼합.\n3. 문제에 표/자료/사례 설명 포함.\n4. 해설은 상세하고 틀린 이유까지 설명. 다만 한 문제당 explanation은 200자 이내로 간결하게.\n5. 친근한 반말, 이모지 적절히 (단, 너무 많이 쓰지 않기).\n6. JSON만 출력. 마크다운 코드블록 쓰지 마.\n7. 응답 전체는 반드시 완결된 JSON 으로 끝낼 것 (중간에 끊지 말 것).\n\n[시각 자료 규칙 — 매우 중요]\n- 자료·그래프·지도·도표가 있어야만 풀 수 있는 문제는 "chart" 또는 "svg" 필드를 반드시 채울 것.\n- 시각 자료를 만들 자신이 없으면 그 문제 자체를 포기하고, 텍스트만으로 풀 수 있는 개념·사례 문제로 대체할 것.\n- "다음 자료를 보고", "아래 그래프에서", "제시된 지도는" 같이 자료를 참조하면서 chart/svg를 비우는 것은 절대 금지. 학생이 문제를 풀 수 없음.\n- 막대/선/원/산점도는 "chart":{"type":"bar|line|pie|scatter","labels":[...],"datasets":[{"label":"...","data":[...]}]} 로 출력.\n- 지도·다이어그램·개념도·모식도는 "svg" 필드에 SVG 코드. viewBox="0 0 400 300", font-family="sans-serif" font-size="13". <script>·on* 이벤트 금지.\n- 텍스트만으로 충분한 개념 문제는 시각 자료 생략.',
     promptSuffix:'과목 수능·학평 5문제를 만들어줘.',
     errorMsg:'수능·학평 생성 중 오류가 발생했어요.',
     emoji:'📝 수능·학평', qPrefix:'socExam', expPrefix:'socExamExp',
