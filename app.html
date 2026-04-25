@@ -9524,7 +9524,7 @@ var WrongNote={
 document.getElementById('wrongNoteBack').addEventListener('click',function(){showScreen('screenHome');});
 document.getElementById('wrongNoteClear').addEventListener('click',function(){
     if(WrongNote.data.length===0){toast('비울 오답이 없어요!');return;}
-    if(!confirm('오답노트 '+WrongNote.data.length+'개를 모두 지울까? (되돌릴 수 없어요)\n먼저 "내보내기"로 백업하는 걸 추천해!')) return;
+    if(!confirm('오답노트 '+WrongNote.data.length+'개를 모두 지울까?\n\n되돌릴 수 없고, 다른 기기에서도 모두 사라져요.')) return;
     var sb=(window.Studia && window.Studia.sb) || null;
     if(!sb){toast('로그인 후에 비울 수 있어요.');return;}
     var prevCount=WrongNote.data.length;
