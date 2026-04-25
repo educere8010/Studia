@@ -443,6 +443,26 @@
             .onb-title{font-size:1.7rem;}
             .onb-grade-btn,.onb-subj-btn{padding:22px 16px;font-size:1rem;}
         }
+        /* 연속 학습일 + 일일 목표 위젯 */
+        .streak-widget{display:flex;align-items:stretch;gap:14px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;box-shadow:0 1px 3px rgba(20,30,60,0.04);}
+        .streak-widget.is-done{background:linear-gradient(135deg,#fff7e8 0%,#fff1d6 100%);border-color:#f0d28b;}
+        .streak-left{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:84px;padding:6px 4px;border-right:1px dashed var(--border);}
+        .streak-num{font-size:2rem;font-weight:800;color:var(--navy);line-height:1;letter-spacing:-0.5px;}
+        .streak-num.fire{color:#e87a18;}
+        .streak-label{font-size:0.74rem;color:var(--text-light);font-weight:600;margin-top:6px;text-align:center;line-height:1.35;}
+        .streak-right{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;gap:6px;min-width:0;}
+        .streak-goal-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+        .streak-goal-text{font-size:0.86rem;font-weight:600;color:var(--navy-dark);}
+        .streak-goal-emoji{font-size:1.1rem;}
+        .streak-bar{height:8px;background:var(--bg-gray);border-radius:6px;overflow:hidden;}
+        .streak-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#5771d9 0%,#8aa6ff 100%);border-radius:6px;transition:width 0.5s ease;}
+        .streak-widget.is-done .streak-bar-fill{background:linear-gradient(90deg,#e8a83c 0%,#f7c66b 100%);}
+        .streak-best{font-size:0.72rem;color:var(--text-light);margin-top:2px;}
+        @media (min-width:768px){
+            .streak-num{font-size:2.4rem;}
+            .streak-left{min-width:100px;}
+            .streak-goal-text{font-size:0.95rem;}
+        }
         .symbol-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;padding:10px;background:var(--bg-gray);border-radius:10px;}
         .sym-btn{min-width:38px;height:34px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;cursor:pointer;font-family:inherit;transition:all 0.15s;color:var(--navy);font-weight:500;}
         .sym-btn:hover{background:var(--blue-pale);border-color:var(--blue);}
@@ -1202,6 +1222,21 @@
                 <p class="home-tagline">네가 풀 수 있게 만들어주는 AI 과외선생님</p>
                 <h2 class="home-title">오늘은 어떤 과목을<br>공부해볼까요?</h2>
                 <div class="guide-banner" id="homeRecCard" style="margin:0 0 20px;text-align:left;">과목을 선택하면 AI가 <b>개념 정리, 풀이, 변형문제 학습</b>까지 도와드려요 ✨</div>
+                <!-- 연속 학습일 + 일일 목표 위젯 -->
+                <div class="streak-widget" id="streakWidget" style="margin:0 0 20px;display:none;" aria-label="학습 진행 상황">
+                    <div class="streak-left">
+                        <div class="streak-num" id="streakNum">0</div>
+                        <div class="streak-label" id="streakLabel">오늘부터 시작!</div>
+                    </div>
+                    <div class="streak-right">
+                        <div class="streak-goal-row">
+                            <span class="streak-goal-text" id="streakGoalText">오늘 진행 0 / 3</span>
+                            <span class="streak-goal-emoji" id="streakGoalEmoji">🌱</span>
+                        </div>
+                        <div class="streak-bar"><div class="streak-bar-fill" id="streakBarFill" style="width:0%;"></div></div>
+                        <div class="streak-best" id="streakBest" style="display:none;"></div>
+                    </div>
+                </div>
                 <div class="home-actions">
                     <button class="home-action-btn" id="btnReport" aria-label="학습 리포트 열기">
                         <span class="home-action-icon">📊</span> 리포트
@@ -3998,7 +4033,12 @@ function _studiaAfterAuth(){
     try{if(typeof WrongNote!=='undefined' && WrongNote._load){WrongNote._load();}}catch(e){}
     // 온보딩 완료 여부 조회 → 미완료면 온보딩, 완료면 홈
     var sb=(window.Studia && window.Studia.sb) || null;
-    if(!sb){showScreen('screenHome');try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}return;}
+    if(!sb){
+        showScreen('screenHome');
+        try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}
+        try{if(typeof StudyStreak!=='undefined') StudyStreak.render();}catch(e){}
+        return;
+    }
     sb.auth.getUser().then(function(res){
         var meta=(res && res.data && res.data.user && res.data.user.user_metadata)||{};
         if(!meta.onboarded){
@@ -4007,10 +4047,11 @@ function _studiaAfterAuth(){
             try{if(typeof TodayRec!=='undefined' && Array.isArray(meta.interests)) TodayRec.setInterests(meta.interests);}catch(e){}
             try{if(typeof TodayRec!=='undefined' && meta.grade) TodayRec.setGrade(meta.grade);}catch(e){}
             showScreen('screenHome');
-            // 오답노트 로딩 후 추천 카드 갱신을 위해 살짝 지연
+            // 위젯/추천은 즉시 렌더 (오답노트 로딩 후 추천 카드는 한번 더 갱신)
+            try{if(typeof StudyStreak!=='undefined') StudyStreak.render();}catch(e){}
             setTimeout(function(){try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}},300);
         }
-    }).catch(function(){showScreen('screenHome');});
+    }).catch(function(){showScreen('screenHome');try{if(typeof StudyStreak!=='undefined') StudyStreak.render();}catch(e){}});
 }
 
 // ════════════════════
@@ -4057,6 +4098,7 @@ var Onboarding=(function(){
     function _afterSave(){
         try{if(typeof TodayRec!=='undefined'){TodayRec.setInterests(state.interests);TodayRec.setGrade(state.grade);}}catch(e){}
         showScreen('screenHome');
+        try{if(typeof StudyStreak!=='undefined') StudyStreak.render();}catch(e){}
         setTimeout(function(){try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}},150);
     }
     function _save(){
@@ -4082,6 +4124,7 @@ var Onboarding=(function(){
         if(sb){sb.auth.updateUser({data:payload}).then(function(){}).catch(function(){});}
         try{window.Studia && window.Studia.track && window.Studia.track('onboarding_skipped',{reason:state.reason});}catch(e){}
         showScreen('screenHome');
+        try{if(typeof StudyStreak!=='undefined') StudyStreak.render();}catch(e){}
         setTimeout(function(){try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}},150);
     }
     function open(reason){
@@ -4188,6 +4231,7 @@ var TodayRec=(function(){
     }
     function _goSubject(sid){
         try{window.Studia && window.Studia.track && window.Studia.track('today_rec_clicked',{subject:sid});}catch(e){}
+        try{if(typeof StudyStreak!=='undefined') StudyStreak.tick('subject_open_'+sid);}catch(e){}
         if(sid==='math'){if(typeof MathInput!=='undefined') MathInput.open();}
         else if(sid==='english'){if(typeof EngInput!=='undefined') EngInput.open();}
         else if(sid==='korean'){if(typeof KorInput!=='undefined') KorInput.open();}
@@ -4257,7 +4301,126 @@ var TodayRec=(function(){
 })();
 
 // ════════════════════
-//  SETUP SCREEN
+//  STUDY STREAK + DAILY GOAL (연속 학습일 + 일일 목표 위젯)
+//  - 일일 목표: 학습 액션 3개 (1분 debounce, 같은 actionKey 1분 내 중복 무시)
+//  - 연속 학습일: 목표 달성 시점에만 +1, 어제 달성 못 했으면 0으로 리셋(부드러운 격려)
+//  - 저장: localStorage (디바이스 로컬). 다중 기기 동기화는 추후.
+// ════════════════════
+var StudyStreak=(function(){
+    var KEY='studia_streak_v1';
+    var GOAL=3;
+    var data=null;
+
+    function _todayKey(d){
+        d=d||new Date();
+        var m=d.getMonth()+1, day=d.getDate();
+        return d.getFullYear()+'-'+(m<10?'0'+m:m)+'-'+(day<10?'0'+day:day);
+    }
+    function _yesterdayKey(){
+        var d=new Date();d.setDate(d.getDate()-1);
+        return _todayKey(d);
+    }
+    function _load(){
+        if(data) return data;
+        try{
+            var raw=localStorage.getItem(KEY);
+            if(raw) data=JSON.parse(raw);
+        }catch(e){}
+        if(!data){
+            data={current:0,best:0,lastGoalDate:'',todayDate:'',todayActions:0,lastTickKey:'',lastTickAt:0};
+        }
+        return data;
+    }
+    function _save(){
+        try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){}
+    }
+    // 날짜 롤오버 — 자정 지났으면 오늘 카운트 리셋, streak 만료 검사
+    function _rollover(){
+        var d=_load();
+        var today=_todayKey();
+        if(d.todayDate!==today){
+            d.todayDate=today;
+            d.todayActions=0;
+            d.lastTickKey='';
+            d.lastTickAt=0;
+            // streak 만료: 가장 최근 목표 달성일이 어제도 오늘도 아니면 0으로 리셋
+            if(d.current>0 && d.lastGoalDate && d.lastGoalDate!==_yesterdayKey() && d.lastGoalDate!==today){
+                d.current=0;
+            }
+            _save();
+        }
+    }
+    function tick(actionKey){
+        actionKey=actionKey||'study';
+        _rollover();
+        var d=_load();
+        var now=Date.now();
+        // 같은 actionKey 가 1분 이내 중복 호출되면 무시
+        if(d.lastTickKey===actionKey && (now - d.lastTickAt) < 60000){return;}
+        d.lastTickKey=actionKey;
+        d.lastTickAt=now;
+        if(d.todayActions<999) d.todayActions++;
+        // 정확히 목표 도달한 그 순간에만 streak 갱신 + 토스트
+        if(d.todayActions===GOAL && d.lastGoalDate!==d.todayDate){
+            d.current=(d.current||0)+1;
+            if(d.current>d.best) d.best=d.current;
+            d.lastGoalDate=d.todayDate;
+            try{if(typeof toast==='function') toast('🔥 오늘 목표 달성! 연속 '+d.current+'일째');}catch(e){}
+            try{window.Studia && window.Studia.track && window.Studia.track('streak_goal_reached',{streak:d.current,best:d.best,action:actionKey});}catch(e){}
+        }
+        _save();
+        render();
+    }
+    function render(){
+        _rollover();
+        var el=document.getElementById('streakWidget');
+        if(!el) return;
+        var d=_load();
+        var numEl=document.getElementById('streakNum');
+        var labelEl=document.getElementById('streakLabel');
+        var goalTxt=document.getElementById('streakGoalText');
+        var goalEmo=document.getElementById('streakGoalEmoji');
+        var bar=document.getElementById('streakBarFill');
+        var bestEl=document.getElementById('streakBest');
+        var done=d.todayActions>=GOAL;
+        // 위젯 표시
+        el.style.display='flex';
+        if(done) el.classList.add('is-done'); else el.classList.remove('is-done');
+        // 좌측: 연속 학습일
+        if(numEl){
+            numEl.textContent=d.current;
+            if(d.current>0) numEl.classList.add('fire'); else numEl.classList.remove('fire');
+        }
+        if(labelEl){
+            if(d.current<=0) labelEl.textContent='오늘 1일차 시작! 💪';
+            else if(d.current===1) labelEl.textContent='연속 1일째';
+            else labelEl.textContent='🔥 연속 '+d.current+'일';
+        }
+        // 우측: 오늘 진행도
+        var pct=Math.min(100, Math.round((d.todayActions/GOAL)*100));
+        if(bar) bar.style.width=pct+'%';
+        if(goalTxt){
+            if(done) goalTxt.textContent='✅ 오늘 목표 달성!';
+            else goalTxt.textContent='오늘 진행 '+d.todayActions+' / '+GOAL;
+        }
+        if(goalEmo){
+            if(done) goalEmo.textContent='🎉';
+            else if(d.todayActions===0) goalEmo.textContent='🌱';
+            else if(d.todayActions===1) goalEmo.textContent='🌿';
+            else goalEmo.textContent='🌳';
+        }
+        // 최장 기록 (현재 streak 보다 길 때만 표시)
+        if(bestEl){
+            if(d.best>d.current && d.best>=2){
+                bestEl.style.display='block';
+                bestEl.textContent='최장 '+d.best+'일 — 곧 깰 수 있어요!';
+            } else {
+                bestEl.style.display='none';
+            }
+        }
+    }
+    return {tick:tick, render:render, GOAL:GOAL, _data:function(){return _load();}};
+})();
 // ════════════════════
 (function(){
     var input=document.getElementById('apiKeyInput');
@@ -4358,6 +4521,7 @@ var TodayRec=(function(){
         card.setAttribute('aria-label',s.name+' 학습 시작');
         card.addEventListener('click',function(){
             window.Studia.track('subject_selected',{subject:s.id,subject_name:s.name});
+            try{if(typeof StudyStreak!=='undefined') StudyStreak.tick('subject_open_'+s.id);}catch(e){}
             if(s.id==='math') MathInput.open();
             else if(s.id==='english') EngInput.open();
             else if(s.id==='korean') KorInput.open();
