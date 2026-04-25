@@ -463,6 +463,41 @@
             .streak-left{min-width:100px;}
             .streak-goal-text{font-size:0.95rem;}
         }
+        /* 망각곡선 복습 위젯 */
+        .review-widget{display:flex;align-items:center;gap:14px;padding:14px 16px;background:linear-gradient(135deg,#f6f1ff 0%,#ece2ff 100%);border:1px solid #d8c8f7;border-radius:14px;cursor:pointer;transition:transform 0.15s, box-shadow 0.15s;}
+        .review-widget:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(120,80,200,0.15);}
+        .review-widget.has-due{background:linear-gradient(135deg,#fff0f0 0%,#ffe1e1 100%);border-color:#f0bfbf;}
+        .review-widget-icon{flex:0 0 auto;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;background:#fff;border-radius:10px;}
+        .review-widget-body{flex:1 1 auto;min-width:0;}
+        .review-widget-title{font-size:0.95rem;font-weight:700;color:var(--navy);margin-bottom:2px;line-height:1.3;}
+        .review-widget-sub{font-size:0.78rem;color:var(--text-secondary);line-height:1.4;}
+        .review-widget-cta{flex:0 0 auto;font-size:0.84rem;font-weight:600;color:var(--blue);}
+        .review-widget.has-due .review-widget-cta{color:#c8434a;}
+        @media (min-width:768px){
+            .review-widget-title{font-size:1.05rem;}
+            .review-widget-sub{font-size:0.86rem;}
+        }
+        /* 복습 모드 (오답노트 화면 안쪽) */
+        .wn-mode-tabs{display:flex;gap:0;margin:-4px 0 14px;background:var(--bg-gray);padding:4px;border-radius:10px;}
+        .wn-mode-tab{flex:1;padding:9px 10px;background:none;border:none;font-family:inherit;font-size:0.86rem;font-weight:600;color:var(--text-secondary);cursor:pointer;border-radius:7px;transition:background 0.15s, color 0.15s;}
+        .wn-mode-tab.active{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(20,30,60,0.08);}
+        .review-runner{padding:0;}
+        .review-progress{font-size:0.82rem;color:var(--text-secondary);text-align:center;margin-bottom:10px;}
+        .review-stage-chip{display:inline-block;padding:2px 10px;background:var(--blue-pale);color:var(--blue);border-radius:999px;font-size:0.74rem;font-weight:700;margin-bottom:8px;}
+        .review-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px 18px 12px;margin-bottom:14px;}
+        .review-q{font-size:0.96rem;color:var(--navy-dark);line-height:1.65;white-space:pre-wrap;word-break:break-word;}
+        .review-answer-block{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);}
+        .review-answer-row{font-size:0.88rem;color:var(--navy);margin:4px 0;line-height:1.55;}
+        .review-answer-row b{color:var(--navy-dark);}
+        .review-explanation{font-size:0.86rem;color:var(--text-secondary);line-height:1.65;margin-top:8px;white-space:pre-wrap;}
+        .review-actions{display:flex;gap:10px;margin-top:8px;}
+        .review-actions .btn{flex:1;}
+        .btn-success{background:#3aa56b;color:#fff;}
+        .btn-success:hover{background:#2f8d59;}
+        .btn-danger-soft{background:#fff;color:#c8434a;border:2px solid #f4c8cb;}
+        .btn-danger-soft:hover{background:#fff5f6;}
+        .review-empty{padding:40px 20px;text-align:center;color:var(--text-secondary);}
+        .review-empty .emoji{font-size:2.5rem;margin-bottom:10px;}
         .symbol-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;padding:10px;background:var(--bg-gray);border-radius:10px;}
         .sym-btn{min-width:38px;height:34px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;cursor:pointer;font-family:inherit;transition:all 0.15s;color:var(--navy);font-weight:500;}
         .sym-btn:hover{background:var(--blue-pale);border-color:var(--blue);}
@@ -1236,6 +1271,15 @@
                         <div class="streak-bar"><div class="streak-bar-fill" id="streakBarFill" style="width:0%;"></div></div>
                         <div class="streak-best" id="streakBest" style="display:none;"></div>
                     </div>
+                </div>
+                <!-- 망각곡선 복습 위젯 -->
+                <div class="review-widget" id="reviewWidget" style="margin:0 0 20px;display:none;" role="button" tabindex="0" aria-label="오늘의 복습">
+                    <div class="review-widget-icon">🧠</div>
+                    <div class="review-widget-body">
+                        <div class="review-widget-title" id="reviewWidgetTitle">📚 오늘 복습할 0개</div>
+                        <div class="review-widget-sub" id="reviewWidgetSub">망각곡선에 따라 다시 풀어볼 시간이에요!</div>
+                    </div>
+                    <div class="review-widget-cta" id="reviewWidgetCta">복습 시작 →</div>
                 </div>
                 <div class="home-actions">
                     <button class="home-action-btn" id="btnReport" aria-label="학습 리포트 열기">
@@ -2393,8 +2437,14 @@
         </div>
         <div class="scroll-area">
             <div class="wrong-note-content">
+                <!-- 모드 탭: 전체 / 복습 -->
+                <div class="wn-mode-tabs" id="wnModeTabs">
+                    <button class="wn-mode-tab active" data-mode="all" type="button">📋 전체</button>
+                    <button class="wn-mode-tab" data-mode="review" type="button">🧠 복습 <span id="wnReviewCount" style="margin-left:4px;color:var(--blue);font-weight:700;">0</span></button>
+                </div>
                 <div class="wrong-filter" id="wrongFilter"></div>
                 <div id="wrongList"></div>
+                <div id="reviewRunner" class="review-runner" style="display:none;"></div>
             </div>
         </div>
     </div>
@@ -4037,6 +4087,7 @@ function _studiaAfterAuth(){
         showScreen('screenHome');
         try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}
         try{if(typeof StudyStreak!=='undefined') StudyStreak.render();}catch(e){}
+        try{if(typeof ReviewQueue!=='undefined') ReviewQueue.render();}catch(e){}
         return;
     }
     sb.auth.getUser().then(function(res){
@@ -4047,11 +4098,27 @@ function _studiaAfterAuth(){
             try{if(typeof TodayRec!=='undefined' && Array.isArray(meta.interests)) TodayRec.setInterests(meta.interests);}catch(e){}
             try{if(typeof TodayRec!=='undefined' && meta.grade) TodayRec.setGrade(meta.grade);}catch(e){}
             showScreen('screenHome');
-            // 위젯/추천은 즉시 렌더 (오답노트 로딩 후 추천 카드는 한번 더 갱신)
+            // 위젯/추천은 즉시 렌더, 오답노트가 로드되고 나면 다시 한 번 갱신
             try{if(typeof StudyStreak!=='undefined') StudyStreak.render();}catch(e){}
-            setTimeout(function(){try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}},300);
+            setTimeout(function(){
+                try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}
+                try{if(typeof ReviewQueue!=='undefined') ReviewQueue.render();}catch(e){}
+            },300);
+            // WrongNote 로드 완료 후 위젯 재렌더 (오답노트가 클라우드에서 시간이 좀 걸릴 수 있음)
+            try{
+                if(typeof WrongNote!=='undefined' && WrongNote._loading){
+                    WrongNote._loading.then(function(){
+                        try{if(typeof ReviewQueue!=='undefined') ReviewQueue.render();}catch(e){}
+                        try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}
+                    });
+                }
+            }catch(e){}
         }
-    }).catch(function(){showScreen('screenHome');try{if(typeof StudyStreak!=='undefined') StudyStreak.render();}catch(e){}});
+    }).catch(function(){
+        showScreen('screenHome');
+        try{if(typeof StudyStreak!=='undefined') StudyStreak.render();}catch(e){}
+        try{if(typeof ReviewQueue!=='undefined') ReviewQueue.render();}catch(e){}
+    });
 }
 
 // ════════════════════
@@ -4421,6 +4488,184 @@ var StudyStreak=(function(){
     }
     return {tick:tick, render:render, GOAL:GOAL, _data:function(){return _load();}};
 })();
+
+// ════════════════════
+//  REVIEW QUEUE (망각곡선 복습 시스템)
+//  - 단계별 간격: 1일 → 3일 → 7일 → 14일 → 30일 → 완전 습득
+//  - 정답: stage++, 다음 단계 일수 후 재예약. stage>=6 이면 mastered=true
+//  - 오답: stage 그대로, 1일 뒤 재예약 (1단계로 되돌리는 효과는 stage=1 일 때만)
+//  - 데이터: WrongNote.data 의 reviewStage / nextReviewAt / mastered 필드
+// ════════════════════
+var ReviewQueue=(function(){
+    // 인덱스 0 은 안 쓰고, stage 1~5 → 다음 인터벌(일). stage 6 = 완전습득.
+    var INTERVALS_DAYS=[null, 1, 3, 7, 14, 30];
+    var MASTER_STAGE=6;
+    var DAY_MS=24*60*60*1000;
+
+    function _now(){return Date.now();}
+
+    // 오늘(now 기준) 복습 대상 개수
+    function dueCount(){
+        try{
+            if(typeof WrongNote==='undefined' || !WrongNote.data) return 0;
+            var n=0, now=_now();
+            for(var i=0;i<WrongNote.data.length;i++){
+                var d=WrongNote.data[i];
+                if(d.mastered) continue;
+                var due=d.nextReviewAt||0;
+                if(due<=now) n++;
+            }
+            return n;
+        }catch(e){return 0;}
+    }
+
+    // 복습 대상 항목들(due 우선, 오래된 순)
+    function dueItems(){
+        var arr=[], now=_now();
+        if(typeof WrongNote==='undefined' || !WrongNote.data) return arr;
+        for(var i=0;i<WrongNote.data.length;i++){
+            var d=WrongNote.data[i];
+            if(d.mastered) continue;
+            var due=d.nextReviewAt||0;
+            if(due<=now) arr.push(d);
+        }
+        arr.sort(function(a,b){return (a.nextReviewAt||0)-(b.nextReviewAt||0);});
+        return arr;
+    }
+
+    // 단계명 (위젯 라벨)
+    function stageLabel(stage){
+        switch(stage){
+            case 1: return '1일 복습';
+            case 2: return '3일 복습';
+            case 3: return '1주 복습';
+            case 4: return '2주 복습';
+            case 5: return '1달 복습';
+            case 6: return '완전 습득';
+            default: return '복습';
+        }
+    }
+
+    // 정답 처리 — stage 한 단계 올림
+    function pass(item){
+        if(!item) return Promise.resolve();
+        var nextStage=Math.min(MASTER_STAGE, (item.reviewStage||1)+1);
+        var willMaster=(nextStage>=MASTER_STAGE);
+        var nowIso=new Date().toISOString();
+        var update={
+            review_stage: nextStage,
+            last_reviewed_at: nowIso,
+            review_correct_count: (item.reviewCorrect||0)+1,
+            mastered: willMaster
+        };
+        if(willMaster){
+            update.next_review_at=null;
+        } else {
+            update.next_review_at=new Date(_now() + INTERVALS_DAYS[nextStage]*DAY_MS).toISOString();
+        }
+        // 로컬 캐시 즉시 반영
+        item.reviewStage=nextStage;
+        item.lastReviewedAt=_now();
+        item.reviewCorrect=(item.reviewCorrect||0)+1;
+        item.mastered=willMaster;
+        item.nextReviewAt=willMaster?null:(_now()+INTERVALS_DAYS[nextStage]*DAY_MS);
+        try{window.Studia && window.Studia.track && window.Studia.track('review_pass',{stage:nextStage, mastered:willMaster});}catch(e){}
+        return _saveOne(item, update);
+    }
+
+    // 오답 처리 — stage 유지, 1일 뒤 재예약
+    function fail(item){
+        if(!item) return Promise.resolve();
+        var nowIso=new Date().toISOString();
+        var nextDue=_now()+INTERVALS_DAYS[1]*DAY_MS;
+        var update={
+            // stage 는 그대로 (어려운 단계에서 머무르면서 반복)
+            last_reviewed_at: nowIso,
+            review_wrong_count: (item.reviewWrong||0)+1,
+            next_review_at: new Date(nextDue).toISOString()
+        };
+        item.lastReviewedAt=_now();
+        item.reviewWrong=(item.reviewWrong||0)+1;
+        item.nextReviewAt=nextDue;
+        try{window.Studia && window.Studia.track && window.Studia.track('review_fail',{stage:item.reviewStage});}catch(e){}
+        return _saveOne(item, update);
+    }
+
+    // 한 행만 DB에 반영 (id 없으면 로컬만 갱신)
+    function _saveOne(item, update){
+        var sb=(window.Studia && window.Studia.sb) || null;
+        if(!sb || !item.id) return Promise.resolve();
+        return sb.from('wrong_notes').update(update).eq('id',item.id).then(function(resp){
+            if(resp && resp.error) console.warn('[ReviewQueue] update failed:',resp.error);
+        }).catch(function(e){console.warn('[ReviewQueue] update exception:',e);});
+    }
+
+    // 홈 위젯 렌더 — 별도 호출 (외부에서 WrongNote._load 후 부르는 게 정확)
+    function render(){
+        var el=document.getElementById('reviewWidget');
+        if(!el) return;
+        // 데이터가 아직 안 실렸으면 로딩 상태로 표시 후 한 번 더 시도
+        var loaded=(typeof WrongNote!=='undefined' && WrongNote._loaded);
+        if(!loaded){
+            el.style.display='none';
+            return;
+        }
+        var n=dueCount();
+        var totalActive=0, mastered=0;
+        try{
+            for(var i=0;i<WrongNote.data.length;i++){
+                if(WrongNote.data[i].mastered) mastered++;
+                else totalActive++;
+            }
+        }catch(e){}
+        var titleEl=document.getElementById('reviewWidgetTitle');
+        var subEl=document.getElementById('reviewWidgetSub');
+        var ctaEl=document.getElementById('reviewWidgetCta');
+        if(n>0){
+            el.style.display='flex';
+            el.classList.add('has-due');
+            if(titleEl) titleEl.textContent='📚 오늘 복습할 '+n+'개';
+            if(subEl) subEl.textContent='망각곡선에 따라 다시 풀어볼 시간이에요!';
+            if(ctaEl) ctaEl.textContent='복습 시작 →';
+        } else if(totalActive>0){
+            el.style.display='flex';
+            el.classList.remove('has-due');
+            if(titleEl) titleEl.textContent='✅ 오늘은 복습할 게 없어요';
+            if(subEl) subEl.textContent='쌓인 오답 '+totalActive+'개는 내일 이후 복습 예정이에요'+(mastered>0?' (습득 완료 '+mastered+'개)':'');
+            if(ctaEl) ctaEl.textContent='오답노트 보기 →';
+        } else {
+            // 오답 자체가 없으면 위젯 숨김
+            el.style.display='none';
+        }
+    }
+
+    function openReview(){
+        try{window.Studia && window.Studia.track && window.Studia.track('review_widget_clicked',{due:dueCount()});}catch(e){}
+        // WrongNote 화면을 열고, 복습 모드로 전환
+        if(typeof WrongNote!=='undefined' && WrongNote.open){
+            WrongNote.open();
+            // open 직후 화면 전환 → 짧은 지연 후 모드 전환
+            setTimeout(function(){
+                if(typeof WrongNote!=='undefined' && WrongNote.switchMode){
+                    WrongNote.switchMode('review');
+                }
+            },50);
+        }
+    }
+
+    return {
+        dueCount:dueCount,
+        dueItems:dueItems,
+        stageLabel:stageLabel,
+        pass:pass,
+        fail:fail,
+        render:render,
+        openReview:openReview,
+        INTERVALS_DAYS:INTERVALS_DAYS,
+        MASTER_STAGE:MASTER_STAGE
+    };
+})();
+
 // ════════════════════
 (function(){
     var input=document.getElementById('apiKeyInput');
@@ -4531,6 +4776,16 @@ var StudyStreak=(function(){
         });
         list.appendChild(card);
     });
+    // 망각곡선 복습 위젯 클릭 → 복습 화면 진입
+    var rw=document.getElementById('reviewWidget');
+    if(rw){
+        rw.addEventListener('click',function(){
+            try{if(typeof ReviewQueue!=='undefined') ReviewQueue.openReview();}catch(e){}
+        });
+        rw.addEventListener('keydown',function(ev){
+            if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();try{ReviewQueue.openReview();}catch(e){}}
+        });
+    }
 })();
 
 // ════════════════════
@@ -9643,7 +9898,7 @@ var WRONG_NOTE_MAX=500;                     // 메모리 캐시 최대 보유 (�
 var WRONG_NOTE_VERSION=2;                   // v1=localStorage, v2=DB
 
 var WrongNote={
-    data:[],                  // {id?,subject,question,myAnswer,correctAnswer,explanation,concept,options,correctIdx,timestamp}
+    data:[],                  // {id?,subject,question,myAnswer,correctAnswer,explanation,concept,options,correctIdx,timestamp,reviewStage,nextReviewAt,lastReviewedAt,reviewCorrect,reviewWrong,mastered}
     _loaded:false,            // _load() 완료 여부
     _loading:null,            // 진행 중인 load Promise (중복 방지)
 
@@ -9659,13 +9914,20 @@ var WrongNote={
             concept: r.concept||'',
             options: r.options||null,
             correctIdx: (typeof r.correct_idx==='number')?r.correct_idx:-1,
-            timestamp: r.client_timestamp || (r.created_at?new Date(r.created_at).getTime():Date.now())
+            timestamp: r.client_timestamp || (r.created_at?new Date(r.created_at).getTime():Date.now()),
+            // 망각곡선 복습 필드 (16번 마이그레이션 이후 채워짐)
+            reviewStage: (typeof r.review_stage==='number')?r.review_stage:1,
+            nextReviewAt: r.next_review_at ? new Date(r.next_review_at).getTime() : null,
+            lastReviewedAt: r.last_reviewed_at ? new Date(r.last_reviewed_at).getTime() : null,
+            reviewCorrect: (typeof r.review_correct_count==='number')?r.review_correct_count:0,
+            reviewWrong: (typeof r.review_wrong_count==='number')?r.review_wrong_count:0,
+            mastered: !!r.mastered
         };
     },
 
     // ── 클라이언트 객체 → DB insert 페이로드 ──
     _toDbRow:function(d){
-        return {
+        var row={
             subject: d.subject,
             question: d.question||'',
             my_answer: d.myAnswer||'',
@@ -9676,6 +9938,11 @@ var WrongNote={
             correct_idx: (typeof d.correctIdx==='number')?d.correctIdx:-1,
             client_timestamp: d.timestamp || Date.now()
         };
+        // 신규 등록은 stage=1, 1일 뒤 첫 복습 (DB DEFAULT 와 동일하지만 명시)
+        if(typeof d.reviewStage==='number') row.review_stage=d.reviewStage;
+        if(d.nextReviewAt) row.next_review_at=new Date(d.nextReviewAt).toISOString();
+        else row.next_review_at=new Date(Date.now()+24*60*60*1000).toISOString();
+        return row;
     },
 
     // ── localStorage → DB 일회성 마이그레이션 (성공 시 localStorage 키 제거) ──
@@ -10061,14 +10328,161 @@ var WrongNote={
     },
 
     open:function(){
+        this.mode='all';
         this.renderFilter();
         this.render(null);
+        this._renderModeTabs();
+        this._applyModeUI();
         showScreen('screenWrongNote');
+    },
+
+    // ── 망각곡선 복습 모드 ──
+    mode:'all',                                   // 'all' | 'review'
+    reviewState:{queue:[], idx:0, revealed:false},
+
+    switchMode:function(m){
+        this.mode=(m==='review')?'review':'all';
+        // 탭 활성화 토글
+        var tabs=document.getElementById('wnModeTabs');
+        if(tabs){
+            var btns=tabs.querySelectorAll('.wn-mode-tab');
+            for(var i=0;i<btns.length;i++){
+                if(btns[i].getAttribute('data-mode')===this.mode) btns[i].classList.add('active');
+                else btns[i].classList.remove('active');
+            }
+        }
+        this._applyModeUI();
+        if(this.mode==='review') this._startReview();
+        else { this.renderFilter(); this.render(null); }
+        this._renderModeTabs();
+    },
+
+    _applyModeUI:function(){
+        var filterEl=document.getElementById('wrongFilter');
+        var listEl=document.getElementById('wrongList');
+        var reviewEl=document.getElementById('reviewRunner');
+        if(this.mode==='review'){
+            if(filterEl) filterEl.style.display='none';
+            if(listEl) listEl.style.display='none';
+            if(reviewEl) reviewEl.style.display='block';
+        } else {
+            if(filterEl) filterEl.style.display='';
+            if(listEl) listEl.style.display='';
+            if(reviewEl) reviewEl.style.display='none';
+        }
+    },
+
+    _renderModeTabs:function(){
+        var cnt=document.getElementById('wnReviewCount');
+        if(!cnt) return;
+        var n=0;
+        try{if(typeof ReviewQueue!=='undefined') n=ReviewQueue.dueCount();}catch(e){}
+        cnt.textContent=n;
+    },
+
+    _startReview:function(){
+        var queue=[];
+        try{if(typeof ReviewQueue!=='undefined') queue=ReviewQueue.dueItems();}catch(e){}
+        this.reviewState={queue:queue, idx:0, revealed:false};
+        this._renderReview();
+    },
+
+    _renderReview:function(){
+        var el=document.getElementById('reviewRunner');
+        if(!el) return;
+        var st=this.reviewState||{queue:[],idx:0,revealed:false};
+        if(!st.queue || st.queue.length===0){
+            el.innerHTML='<div class="review-empty"><div class="emoji">🌟</div><div style="font-weight:700;color:var(--navy-dark);margin-bottom:4px;">오늘 복습할 게 없어요!</div><div style="font-size:0.86rem;line-height:1.55;">새로 틀린 문제가 생기면<br>1일 뒤에 여기 다시 나타나요.</div></div>';
+            return;
+        }
+        if(st.idx>=st.queue.length){
+            // 세션 완료 화면
+            el.innerHTML='<div class="review-empty"><div class="emoji">🎉</div><div style="font-weight:700;color:var(--navy-dark);font-size:1.1rem;margin-bottom:6px;">오늘 복습 끝!</div><div style="font-size:0.92rem;line-height:1.6;">'+st.queue.length+'개를 다시 풀어봤어요. 정말 잘했어요 💪</div><button class="btn btn-primary" id="wnReviewDoneBtn" style="margin-top:24px;max-width:240px;">전체 오답 보기</button></div>';
+            var doneBtn=document.getElementById('wnReviewDoneBtn');
+            if(doneBtn) doneBtn.addEventListener('click',function(){WrongNote.switchMode('all');});
+            // 복습 세션 완료를 학습 액션 1회로 카운트
+            try{if(typeof StudyStreak!=='undefined') StudyStreak.tick('review_session_done');}catch(e){}
+            try{window.Studia && window.Studia.track && window.Studia.track('review_session_complete',{count:st.queue.length});}catch(e){}
+            return;
+        }
+        var d=st.queue[st.idx];
+        var subjectNames={math:'수학',english:'영어',korean:'국어',social:'사회',science:'과학',history:'역사'};
+        var sn=subjectNames[d.subject]||d.subject;
+        var stageName='복습';
+        try{if(typeof ReviewQueue!=='undefined') stageName=ReviewQueue.stageLabel(d.reviewStage||1);}catch(e){}
+        var h='';
+        h+='<div class="review-progress">'+(st.idx+1)+' / '+st.queue.length+'</div>';
+        h+='<div style="text-align:center;"><span class="review-stage-chip">'+escHtml(sn)+' · '+escHtml(stageName)+'</span></div>';
+        h+='<div class="review-card">';
+        h+='<div class="review-q">'+escHtml(d.question||'')+'</div>';
+        if(st.revealed){
+            h+='<div class="review-answer-block">';
+            h+='<div class="review-answer-row"><b>내가 적었던 답:</b> '+escHtml(d.myAnswer||'(없음)')+'</div>';
+            h+='<div class="review-answer-row"><b>정답:</b> '+escHtml(d.correctAnswer||'')+'</div>';
+            if(d.explanation) h+='<div class="review-explanation">'+escHtml(d.explanation)+'</div>';
+            h+='</div>';
+        }
+        h+='</div>';
+        if(!st.revealed){
+            h+='<button class="btn btn-primary btn-block" id="wnRevealBtn">정답·해설 보기</button>';
+            h+='<div style="text-align:center;margin-top:6px;font-size:0.78rem;color:var(--text-light);">먼저 풀어보고 누르면 더 효과적이에요</div>';
+        } else {
+            h+='<div class="review-actions">';
+            h+='<button class="btn btn-danger-soft" id="wnFailBtn">😅 다시 볼래요</button>';
+            h+='<button class="btn btn-success" id="wnPassBtn">😊 맞췄어요</button>';
+            h+='</div>';
+            h+='<div style="text-align:center;margin-top:10px;font-size:0.78rem;color:var(--text-light);line-height:1.5;">맞추면 다음 단계로, 못 맞추면 1일 뒤 다시 등장해요</div>';
+        }
+        el.innerHTML=h;
+        try{if(typeof renderKaTeX==='function') renderKaTeX(el);}catch(e){}
+        var rb=document.getElementById('wnRevealBtn');
+        if(rb) rb.addEventListener('click',function(){WrongNote._reveal();});
+        var pb=document.getElementById('wnPassBtn');
+        if(pb) pb.addEventListener('click',function(){WrongNote._pass();});
+        var fb=document.getElementById('wnFailBtn');
+        if(fb) fb.addEventListener('click',function(){WrongNote._fail();});
+    },
+
+    _reveal:function(){
+        if(!this.reviewState) return;
+        this.reviewState.revealed=true;
+        this._renderReview();
+    },
+    _pass:function(){
+        if(!this.reviewState) return;
+        var d=this.reviewState.queue[this.reviewState.idx];
+        try{if(typeof ReviewQueue!=='undefined' && d) ReviewQueue.pass(d);}catch(e){}
+        this.reviewState.idx++;
+        this.reviewState.revealed=false;
+        this._renderReview();
+        this._renderModeTabs();
+    },
+    _fail:function(){
+        if(!this.reviewState) return;
+        var d=this.reviewState.queue[this.reviewState.idx];
+        try{if(typeof ReviewQueue!=='undefined' && d) ReviewQueue.fail(d);}catch(e){}
+        this.reviewState.idx++;
+        this.reviewState.revealed=false;
+        this._renderReview();
+        this._renderModeTabs();
     }
 };
 
 // Wrong note screen events
 document.getElementById('wrongNoteBack').addEventListener('click',function(){showScreen('screenHome');});
+
+// 전체 / 복습 탭 클릭 핸들러
+(function(){
+    var tabs=document.getElementById('wnModeTabs');
+    if(!tabs) return;
+    tabs.addEventListener('click',function(ev){
+        var b=ev.target;
+        while(b && b!==tabs && !(b.classList && b.classList.contains('wn-mode-tab'))) b=b.parentElement;
+        if(!b || !b.classList || !b.classList.contains('wn-mode-tab')) return;
+        var m=b.getAttribute('data-mode');
+        if(m && WrongNote && WrongNote.switchMode) WrongNote.switchMode(m);
+    });
+})();
 document.getElementById('wrongNoteClear').addEventListener('click',function(){
     if(WrongNote.data.length===0){toast('비울 오답이 없어요!');return;}
     if(!confirm('오답노트 '+WrongNote.data.length+'개를 모두 지울까?\n\n되돌릴 수 없고, 다른 기기에서도 모두 사라져요.')) return;
