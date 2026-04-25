@@ -416,6 +416,33 @@
         .section-hint{display:block;color:var(--text-light);font-size:0.78rem;line-height:1.5;margin:-4px 0 10px;font-weight:400;}
         .guide-banner{background:linear-gradient(135deg,#f0f4ff 0%,#e8f0fe 100%);border:1px solid #d0daf0;border-radius:12px;padding:12px 14px;margin:10px 16px 6px;font-size:0.82rem;color:#3a4a6b;line-height:1.65;}
         .guide-banner b{color:var(--navy);}
+        /* 오늘의 추천 카드 (가이드 배너 위에 덮어쓰는 모드) */
+        .guide-banner.rec-card{cursor:pointer;background:linear-gradient(135deg,#eef3ff 0%,#dbe4fa 100%);border-color:#b9c8ee;padding:14px 16px;transition:transform 0.15s, box-shadow 0.15s;}
+        .guide-banner.rec-card:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(87,113,217,0.18);}
+        /* 온보딩 화면 */
+        .onboarding-screen{background:linear-gradient(180deg,#f6f8ff 0%,#ffffff 60%);padding:32px 20px;display:none;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;}
+        .onboarding-screen.active{display:flex;}
+        .onb-wrap{max-width:480px;width:100%;margin:0 auto;padding:24px 0;}
+        .onb-progress{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:32px;}
+        .onb-step-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e5e9f5;color:#94a3b8;font-weight:700;font-size:0.9rem;transition:all 0.2s;}
+        .onb-step-dot.active{background:var(--blue);color:#fff;}
+        .onb-step-dot.done{background:var(--blue);color:#fff;opacity:0.8;}
+        .onb-step-line{width:48px;height:2px;background:#e5e9f5;}
+        .onb-title{font-size:1.5rem;font-weight:700;color:var(--navy-dark);text-align:center;margin:0 0 8px;letter-spacing:-0.01em;}
+        .onb-desc{font-size:0.92rem;color:var(--text-secondary);text-align:center;margin:0 0 24px;line-height:1.55;}
+        .onb-pick-count{display:inline-block;margin-left:6px;background:var(--blue-pale);color:var(--blue);padding:2px 8px;border-radius:10px;font-size:0.78rem;font-weight:600;}
+        .onb-grade-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+        .onb-subj-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+        .onb-grade-btn,.onb-subj-btn{padding:18px 14px;background:#fff;border:2px solid var(--border);border-radius:12px;font-family:inherit;font-size:0.95rem;font-weight:600;color:var(--navy-dark);cursor:pointer;transition:all 0.18s;}
+        .onb-grade-btn:hover,.onb-subj-btn:hover{border-color:var(--blue);background:var(--blue-pale);}
+        .onb-grade-btn.selected,.onb-subj-btn.selected{border-color:var(--blue);background:var(--blue);color:#fff;}
+        .btn-text{background:none;border:none;color:var(--text-secondary);font-family:inherit;font-size:0.88rem;cursor:pointer;padding:10px;width:100%;text-align:center;}
+        .btn-text:hover{color:var(--blue);}
+        @media (min-width:768px){
+            .onb-wrap{max-width:560px;}
+            .onb-title{font-size:1.7rem;}
+            .onb-grade-btn,.onb-subj-btn{padding:22px 16px;font-size:1rem;}
+        }
         .symbol-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;padding:10px;background:var(--bg-gray);border-radius:10px;}
         .sym-btn{min-width:38px;height:34px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;cursor:pointer;font-family:inherit;transition:all 0.15s;color:var(--navy);font-weight:500;}
         .sym-btn:hover{background:var(--blue-pale);border-color:var(--blue);}
@@ -1034,6 +1061,49 @@
         </div>
     </div>
 
+    <!-- ONBOARDING — 가입 직후 1회 (프로필 메뉴 "온보딩 다시 보기" 로도 진입) -->
+    <div class="screen onboarding-screen" id="screenOnboarding" role="main" aria-label="온보딩">
+        <div class="onb-wrap">
+            <div class="onb-progress" role="progressbar" aria-valuemin="1" aria-valuemax="2" aria-valuenow="1">
+                <div class="onb-step-dot active" id="onbDot1">1</div>
+                <div class="onb-step-line"></div>
+                <div class="onb-step-dot" id="onbDot2">2</div>
+            </div>
+
+            <!-- 스텝 1: 학년 -->
+            <div class="onb-step" id="onbStep1">
+                <h2 class="onb-title">반가워요! 👋</h2>
+                <p class="onb-desc">학년을 알려주면 거기에 맞춰 추천해드릴게요.</p>
+                <div class="onb-grade-grid">
+                    <button type="button" class="onb-grade-btn" data-grade="중1">중1</button>
+                    <button type="button" class="onb-grade-btn" data-grade="중2">중2</button>
+                    <button type="button" class="onb-grade-btn" data-grade="중3">중3</button>
+                    <button type="button" class="onb-grade-btn" data-grade="고1">고1</button>
+                    <button type="button" class="onb-grade-btn" data-grade="고2">고2</button>
+                    <button type="button" class="onb-grade-btn" data-grade="고3">고3</button>
+                </div>
+                <button class="btn btn-primary btn-block" id="onbStep1Next" disabled style="margin-top:24px;">다음</button>
+                <button type="button" class="btn-text" id="onbSkip" style="margin-top:8px;">건너뛰기</button>
+            </div>
+
+            <!-- 스텝 2: 관심 과목 -->
+            <div class="onb-step" id="onbStep2" style="display:none;">
+                <h2 class="onb-title">어떤 과목에 관심 있어?</h2>
+                <p class="onb-desc">1~3개 골라줘. <span class="onb-pick-count" id="onbPickCount">0/3</span></p>
+                <div class="onb-subj-grid">
+                    <button type="button" class="onb-subj-btn" data-subj="korean">📝 국어</button>
+                    <button type="button" class="onb-subj-btn" data-subj="math">📐 수학</button>
+                    <button type="button" class="onb-subj-btn" data-subj="english">📖 영어</button>
+                    <button type="button" class="onb-subj-btn" data-subj="science">🔬 과학</button>
+                    <button type="button" class="onb-subj-btn" data-subj="social">🌍 사회</button>
+                    <button type="button" class="onb-subj-btn" data-subj="history">📜 역사</button>
+                </div>
+                <button class="btn btn-primary btn-block" id="onbStep2Done" disabled style="margin-top:24px;">시작하기 🚀</button>
+                <button type="button" class="btn-text" id="onbBackStep1" style="margin-top:8px;">← 학년 다시 고르기</button>
+            </div>
+        </div>
+    </div>
+
     <!-- SETUP -->
     <!-- BILLING — 결제수단 등록 (신규 가입자 필수 통과 화면 · Phase 1 UI) -->
     <div class="screen setup-screen" id="screenBilling">
@@ -1115,6 +1185,11 @@
                     <span class="profile-menu-text">구독 해지</span>
                 </button>
                 <div style="height:1px;background:var(--border);margin:4px 6px;"></div>
+                <!-- 온보딩 다시 보기 -->
+                <button class="profile-menu-item" id="menuRedoOnboarding" role="menuitem">
+                    <span class="profile-menu-icon">✨</span>
+                    <span class="profile-menu-text">온보딩 다시 보기</span>
+                </button>
                 <button class="profile-menu-item" id="menuLogout" role="menuitem">
                     <span class="profile-menu-icon">🚪</span>
                     <span class="profile-menu-text">로그아웃</span>
@@ -1126,7 +1201,7 @@
                 <div class="home-logo">Studi<span>a</span></div>
                 <p class="home-tagline">네가 풀 수 있게 만들어주는 AI 과외선생님</p>
                 <h2 class="home-title">오늘은 어떤 과목을<br>공부해볼까요?</h2>
-                <div class="guide-banner" style="margin:0 0 20px;text-align:left;">과목을 선택하면 AI가 <b>개념 정리, 풀이, 변형문제 학습</b>까지 도와드려요 ✨</div>
+                <div class="guide-banner" id="homeRecCard" style="margin:0 0 20px;text-align:left;">과목을 선택하면 AI가 <b>개념 정리, 풀이, 변형문제 학습</b>까지 도와드려요 ✨</div>
                 <div class="home-actions">
                     <button class="home-action-btn" id="btnReport" aria-label="학습 리포트 열기">
                         <span class="home-action-icon">📊</span> 리포트
@@ -3914,15 +3989,272 @@ function _authClear(){var e=document.getElementById('authErr');if(e){e.style.dis
     }
 })();
 
-// 로그인 성공 후 호출: 바로 홈으로. API 키 입력 단계는 Week 2 이후 서버(Edge Function)로 이관됨.
+// 로그인 성공 후 호출: 온보딩 여부 분기 → 홈/온보딩 화면
 function _studiaAfterAuth(){
     // 이전 버전에서 브라우저에 저장되었던 Anthropic 키가 있다면 보안상 정리한다.
     try{localStorage.removeItem('studia_key');localStorage.removeItem('studia_key_persist');}catch(e){}
     try{sessionStorage.removeItem('studia_key');}catch(e){}
     // 오답노트를 클라우드에서 불러옴 (이전 localStorage 데이터가 있으면 자동 마이그레이션)
     try{if(typeof WrongNote!=='undefined' && WrongNote._load){WrongNote._load();}}catch(e){}
-    showScreen('screenHome');
+    // 온보딩 완료 여부 조회 → 미완료면 온보딩, 완료면 홈
+    var sb=(window.Studia && window.Studia.sb) || null;
+    if(!sb){showScreen('screenHome');try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}return;}
+    sb.auth.getUser().then(function(res){
+        var meta=(res && res.data && res.data.user && res.data.user.user_metadata)||{};
+        if(!meta.onboarded){
+            try{if(typeof Onboarding!=='undefined') Onboarding.open('auto'); else showScreen('screenHome');}catch(e){showScreen('screenHome');}
+        } else {
+            try{if(typeof TodayRec!=='undefined' && Array.isArray(meta.interests)) TodayRec.setInterests(meta.interests);}catch(e){}
+            try{if(typeof TodayRec!=='undefined' && meta.grade) TodayRec.setGrade(meta.grade);}catch(e){}
+            showScreen('screenHome');
+            // 오답노트 로딩 후 추천 카드 갱신을 위해 살짝 지연
+            setTimeout(function(){try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}},300);
+        }
+    }).catch(function(){showScreen('screenHome');});
 }
+
+// ════════════════════
+//  ONBOARDING (학년 + 관심 과목 1회 수집)
+//  - 가입 직후 자동 1회 + 프로필 메뉴에서 다시 보기
+//  - 저장 위치: Supabase user_metadata { grade, interests[], onboarded:true }
+// ════════════════════
+var Onboarding=(function(){
+    var state={grade:'',interests:[],reason:'auto'};
+    function $(id){return document.getElementById(id);}
+    function _resetUI(){
+        state.grade='';state.interests=[];
+        var s1=$('onbStep1'),s2=$('onbStep2');
+        if(s1)s1.style.display='';
+        if(s2)s2.style.display='none';
+        var d1=$('onbDot1'),d2=$('onbDot2');
+        if(d1){d1.classList.add('active');d1.classList.remove('done');}
+        if(d2){d2.classList.remove('active');d2.classList.remove('done');}
+        // 모든 학년/과목 버튼 선택 해제
+        var gbs=document.querySelectorAll('.onb-grade-btn');
+        for(var i=0;i<gbs.length;i++) gbs[i].classList.remove('selected');
+        var sbs=document.querySelectorAll('.onb-subj-btn');
+        for(var j=0;j<sbs.length;j++) sbs[j].classList.remove('selected');
+        var n1=$('onbStep1Next'); if(n1) n1.disabled=true;
+        var n2=$('onbStep2Done'); if(n2) n2.disabled=true;
+        var pc=$('onbPickCount'); if(pc) pc.textContent='0/3';
+    }
+    function _toStep2(){
+        var s1=$('onbStep1'),s2=$('onbStep2');
+        if(s1)s1.style.display='none';
+        if(s2)s2.style.display='';
+        var d1=$('onbDot1'),d2=$('onbDot2');
+        if(d1){d1.classList.remove('active');d1.classList.add('done');}
+        if(d2){d2.classList.add('active');}
+    }
+    function _backStep1(){
+        var s1=$('onbStep1'),s2=$('onbStep2');
+        if(s1)s1.style.display='';
+        if(s2)s2.style.display='none';
+        var d1=$('onbDot1'),d2=$('onbDot2');
+        if(d1){d1.classList.add('active');d1.classList.remove('done');}
+        if(d2){d2.classList.remove('active');}
+    }
+    function _afterSave(){
+        try{if(typeof TodayRec!=='undefined'){TodayRec.setInterests(state.interests);TodayRec.setGrade(state.grade);}}catch(e){}
+        showScreen('screenHome');
+        setTimeout(function(){try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}},150);
+    }
+    function _save(){
+        var sb=(window.Studia && window.Studia.sb) || null;
+        var btn=$('onbStep2Done');
+        if(btn){btn.disabled=true;btn.textContent='저장 중…';}
+        var payload={grade:state.grade,interests:state.interests.slice(),onboarded:true,onboarded_at:new Date().toISOString()};
+        if(!sb){_afterSave();return;}
+        sb.auth.updateUser({data:payload}).then(function(res){
+            try{window.Studia && window.Studia.track && window.Studia.track('onboarding_done',{grade:state.grade,interests:state.interests.join(','),reason:state.reason});}catch(e){}
+            if(btn){btn.disabled=false;btn.textContent='시작하기 🚀';}
+            _afterSave();
+        }).catch(function(err){
+            // 실패해도 일단 진행 — 메타데이터 갱신은 다음 로그인 때 다시 시도됨
+            try{window.Studia && window.Studia.track && window.Studia.track('onboarding_save_failed',{msg:String(err&&err.message||err)});}catch(e){}
+            if(btn){btn.disabled=false;btn.textContent='시작하기 🚀';}
+            _afterSave();
+        });
+    }
+    function _skip(){
+        var sb=(window.Studia && window.Studia.sb) || null;
+        var payload={onboarded:true,onboarded_skipped:true,onboarded_at:new Date().toISOString()};
+        if(sb){sb.auth.updateUser({data:payload}).then(function(){}).catch(function(){});}
+        try{window.Studia && window.Studia.track && window.Studia.track('onboarding_skipped',{reason:state.reason});}catch(e){}
+        showScreen('screenHome');
+        setTimeout(function(){try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}},150);
+    }
+    function open(reason){
+        state.reason=reason||'auto';
+        _resetUI();
+        showScreen('screenOnboarding');
+        try{window.Studia && window.Studia.track && window.Studia.track('onboarding_started',{reason:state.reason});}catch(e){}
+    }
+    // 이벤트 바인딩 (DOM 준비 후 1회)
+    function _bind(){
+        // 학년 버튼 (단일 선택)
+        var gbs=document.querySelectorAll('.onb-grade-btn');
+        for(var i=0;i<gbs.length;i++){
+            (function(b){
+                b.addEventListener('click',function(){
+                    var sib=document.querySelectorAll('.onb-grade-btn');
+                    for(var k=0;k<sib.length;k++) sib[k].classList.remove('selected');
+                    b.classList.add('selected');
+                    state.grade=b.getAttribute('data-grade')||'';
+                    var n=$('onbStep1Next'); if(n) n.disabled=!state.grade;
+                });
+            })(gbs[i]);
+        }
+        // 과목 버튼 (다중 선택, 최대 3)
+        var sbs=document.querySelectorAll('.onb-subj-btn');
+        for(var j=0;j<sbs.length;j++){
+            (function(b){
+                b.addEventListener('click',function(){
+                    var key=b.getAttribute('data-subj')||'';
+                    if(!key)return;
+                    var idx=state.interests.indexOf(key);
+                    if(idx>=0){
+                        state.interests.splice(idx,1);
+                        b.classList.remove('selected');
+                    } else {
+                        if(state.interests.length>=3){
+                            // 최대치 도달 — 토스트 대신 가벼운 흔들림
+                            try{b.animate([{transform:'translateX(0)'},{transform:'translateX(-4px)'},{transform:'translateX(4px)'},{transform:'translateX(0)'}],{duration:200});}catch(e){}
+                            return;
+                        }
+                        state.interests.push(key);
+                        b.classList.add('selected');
+                    }
+                    var pc=$('onbPickCount'); if(pc) pc.textContent=state.interests.length+'/3';
+                    var n=$('onbStep2Done'); if(n) n.disabled=state.interests.length===0;
+                });
+            })(sbs[j]);
+        }
+        var n1=$('onbStep1Next'); if(n1) n1.addEventListener('click',_toStep2);
+        var n2=$('onbStep2Done'); if(n2) n2.addEventListener('click',_save);
+        var bk=$('onbBackStep1'); if(bk) bk.addEventListener('click',_backStep1);
+        var sk=$('onbSkip'); if(sk) sk.addEventListener('click',_skip);
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',_bind); else _bind();
+    return {open:open, skip:_skip, _state:state};
+})();
+
+// ════════════════════
+//  TODAY'S RECOMMENDATION (홈 가이드 배너 자리)
+//  로직: ① 오답노트 가장 많은 과목(약점)
+//        ② 온보딩 관심과목 중 일자별 로테이션
+//        ③ 둘 다 없으면 전체 과목 일자별 로테이션
+// ════════════════════
+var TodayRec=(function(){
+    var SUBJ_ORDER=['korean','math','english','science','social','history'];
+    var SUBJ_NAMES={korean:'국어',math:'수학',english:'영어',science:'과학',social:'사회',history:'역사'};
+    var SUBJ_ICONS={korean:'📝',math:'📐',english:'📖',science:'🔬',social:'🌍',history:'📜'};
+    var cache={interests:null, grade:''};
+
+    function _wrongStats(){
+        var stats={};
+        try{
+            if(typeof WrongNote==='undefined' || !WrongNote.data) return stats;
+            for(var i=0;i<WrongNote.data.length;i++){
+                var s=WrongNote.data[i].subject||'';
+                if(!s) continue;
+                stats[s]=(stats[s]||0)+1;
+            }
+        }catch(e){}
+        return stats;
+    }
+    function _topWeak(stats){
+        var best=null,bestCount=0;
+        for(var k in stats){
+            if(!Object.prototype.hasOwnProperty.call(stats,k)) continue;
+            // 알 수 없는 과목 ID(예: 사회 세부분류)는 스킵
+            if(!SUBJ_NAMES[k]) continue;
+            if(stats[k]>bestCount){bestCount=stats[k];best=k;}
+        }
+        return best?{subject:best,count:bestCount}:null;
+    }
+    function _dayIndex(modulo){
+        var now=new Date();
+        // 연중 일자 → 0..modulo-1
+        var start=new Date(now.getFullYear(),0,0);
+        var diff=now-start;
+        var oneDay=1000*60*60*24;
+        var doy=Math.floor(diff/oneDay);
+        return ((doy%modulo)+modulo)%modulo;
+    }
+    function _pickRotation(pool){
+        if(!pool || pool.length===0) return null;
+        return pool[_dayIndex(pool.length)];
+    }
+    function _goSubject(sid){
+        try{window.Studia && window.Studia.track && window.Studia.track('today_rec_clicked',{subject:sid});}catch(e){}
+        if(sid==='math'){if(typeof MathInput!=='undefined') MathInput.open();}
+        else if(sid==='english'){if(typeof EngInput!=='undefined') EngInput.open();}
+        else if(sid==='korean'){if(typeof KorInput!=='undefined') KorInput.open();}
+        else if(sid==='social'){if(typeof SocInput!=='undefined') SocInput.open();}
+        else if(sid==='science'){if(typeof SciMain!=='undefined') SciMain.open();}
+        else if(sid==='history'){if(typeof HisInput!=='undefined') HisInput.open();}
+    }
+    function _compute(){
+        // 1) 약점 과목
+        var weak=_topWeak(_wrongStats());
+        if(weak && weak.count>=2){
+            return {kind:'weak', subject:weak.subject, count:weak.count};
+        }
+        // 2) 관심과목 로테이션
+        var interests=cache.interests;
+        if(interests && interests.length>0){
+            var validInt=[];
+            for(var i=0;i<interests.length;i++){if(SUBJ_NAMES[interests[i]]) validInt.push(interests[i]);}
+            if(validInt.length>0){
+                return {kind:'interest', subject:_pickRotation(validInt)};
+            }
+        }
+        // 3) 전체 로테이션
+        return {kind:'rotate', subject:_pickRotation(SUBJ_ORDER)};
+    }
+    function render(){
+        var el=document.getElementById('homeRecCard');
+        if(!el) return;
+        var rec=_compute();
+        if(!rec || !rec.subject){
+            // 안전장치 — 추천 실패 시 기본 안내 유지
+            el.classList.remove('rec-card');
+            el.innerHTML='과목을 선택하면 AI가 <b>개념 정리, 풀이, 변형문제 학습</b>까지 도와드려요 ✨';
+            el.onclick=null;
+            return;
+        }
+        var sid=rec.subject;
+        var name=SUBJ_NAMES[sid]||sid;
+        var icon=SUBJ_ICONS[sid]||'✨';
+        var headline='';
+        var sub='';
+        if(rec.kind==='weak'){
+            headline=icon+' 오늘은 <b>'+name+'</b> 복습이 어때요?';
+            sub='오답노트 '+rec.count+'개가 쌓였어요. 한 번 더 다지고 가요 💪';
+        } else if(rec.kind==='interest'){
+            headline=icon+' 오늘의 추천 — <b>'+name+'</b>';
+            sub='관심 과목으로 골라준 '+name+'을 시작해볼까요? 👉';
+        } else {
+            headline=icon+' 오늘은 <b>'+name+'</b> 어때요?';
+            sub='하루에 한 과목씩 가볍게! 👉';
+        }
+        el.classList.add('rec-card');
+        el.setAttribute('role','button');
+        el.setAttribute('tabindex','0');
+        el.innerHTML='<div style="font-size:0.95rem;font-weight:600;color:var(--navy);margin-bottom:4px;">'+headline+'</div>'
+                    +'<div style="font-size:0.82rem;color:#3a4a6b;line-height:1.55;">'+sub+'</div>';
+        el.onclick=function(){_goSubject(sid);};
+        el.onkeydown=function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();_goSubject(sid);}};
+        try{window.Studia && window.Studia.track && window.Studia.track('today_rec_shown',{subject:sid,kind:rec.kind});}catch(e){}
+    }
+    return {
+        render:render,
+        setInterests:function(arr){cache.interests=Array.isArray(arr)?arr.slice():null;},
+        setGrade:function(g){cache.grade=g||'';},
+        _cache:cache
+    };
+})();
 
 // ════════════════════
 //  SETUP SCREEN
@@ -9972,6 +10304,7 @@ document.getElementById('btnReport').addEventListener('click',function(){Report.
     var trialNext=document.getElementById('profileTrialNext');
     var subBtn=document.getElementById('menuSubscription');
     var cancelBtn=document.getElementById('menuCancel');
+    var redoBtn=document.getElementById('menuRedoOnboarding');
     if(!btn || !menu) return;
 
     // 구독 상태 캐시 (구독 관리/해지 버튼 클릭 시 재사용)
@@ -10107,6 +10440,17 @@ document.getElementById('btnReport').addEventListener('click',function(){Report.
             closeMenu();
             if(!confirm('정말로 구독을 해지하시겠어요?\n\n• 자동결제가 취소됩니다.\n• 남은 체험 기간 동안은 계속 이용할 수 있어요.\n• 재가입은 언제든 가능합니다.')) return;
             alert('(테스트 모드)\n\n해지 요청이 접수되었어요.\n실제 해지 연동은 Phase 2에서 추가됩니다.');
+        });
+    }
+
+    // 온보딩 다시 보기
+    if(redoBtn){
+        redoBtn.addEventListener('click',function(){
+            closeMenu();
+            try{
+                if(typeof Onboarding!=='undefined' && Onboarding.open) Onboarding.open('manual');
+                else alert('온보딩 화면을 불러올 수 없어요. 새로고침 후 다시 시도해주세요.');
+            }catch(e){alert('온보딩 화면을 여는 중 오류가 발생했어요.');}
         });
     }
 
