@@ -3518,10 +3518,13 @@ function callAPI(system,messages,maxTokens,opts){
         }
         var ctx=window.Studia._ctx||{};
         var body={
-            model:'claude-sonnet-4-5-20250929',
+            model:'claude-sonnet-4-6',
             max_tokens:maxTokens||8192,
             system:system,
             messages:messages,
+            // 학습/시험 도메인은 객관적 정답이 있는 영역 — 같은 입력에 같은 답이 나오도록.
+            // (기본값 1.0 은 응답 무작위성 최대 → 같은 문제에 답이 흔들리는 원인)
+            temperature: 0,
             subject:opts.subject||ctx.subject||null,
             feature:opts.feature||ctx.feature||null
         };
