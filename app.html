@@ -3314,6 +3314,16 @@ var REQUEST_TIMEOUT_MS=180000; // 180초(3분) 타임아웃 — 멀티 이미지
 var _reqInflight=0;
 var _reqLast={};
 
+// ── 스마트폰 화면 판별 ──
+// iOS Safari (특히 아이폰) 에서 SSE 스트리밍이 백그라운드 전환·화면 잠금·셀룰러 전환에서 자주 끊겨
+// 응답 JSON 이 잘려서 도착하는 문제가 잦다. 스마트폰 폼팩터에서는 비스트리밍으로 폴백한다.
+// 아이패드(>=768px) 와 PC 는 비교적 안정적이라 스트리밍 그대로 사용.
+function _isPhoneFormFactor(){
+    try{
+        return window.matchMedia && window.matchMedia('(max-width: 767px)').matches;
+    }catch(e){ return false; }
+}
+
 function _reqSignature(system,messages){
     var msgStr='';
     try{msgStr=JSON.stringify(messages).slice(0,100);}catch(e){msgStr=''+Math.random();}
@@ -3469,6 +3479,23 @@ function callAPI(system,messages,maxTokens,opts){
         || (typeof opts.onProgress==='function' && opts.stream!==false)
         || (!!overlayEl && opts.stream!==false);
 
+    // ── 아이폰/스마트폰 안정성 폴백 (A-1) ──
+    // 폰 화면 폭에서는 SSE 가 자주 끊김 → 응답 JSON 이 잘려 파싱 실패 → "AI 응답을 구조화하지 못했어요" 토스트 다발.
+    // 비스트리밍으로 한 번에 받아 안전하게 처리. 아이패드(≥768px) 와 PC 는 영향 없음.
+    var phoneFakeTickTimer = null;
+    if(useStream && _isPhoneFormFactor()){
+        useStream = false;
+        // 진행률 바가 멈춘 듯이 보이지 않도록 시간 기반 페이크 티크 (응답이 오면 done() 으로 100% 채움).
+        if(overlayEl && window.Studia && window.Studia.LoadingProgress){
+            var _t0 = Date.now();
+            phoneFakeTickTimer = setInterval(function(){
+                var sec = (Date.now()-_t0)/1000;
+                // tick 곡선 1 - e^(-n/1500) 을 시간 기반으로: sec*200 ≈ 8초→63%, 16초→86%, 24초→93%
+                try{ window.Studia.LoadingProgress.tick(overlayEl, sec * 200); }catch(_e){}
+            }, 300);
+        }
+    }
+
     // overlay 자동 바인딩: onProgress 가 없으면 진행률 바만, 있으면 사용자 콜백 + 진행률 바 둘 다.
     if(overlayEl && window.Studia && window.Studia.LoadingProgress){
         var userOnProgress = opts.onProgress;
@@ -3545,6 +3572,7 @@ function callAPI(system,messages,maxTokens,opts){
         });
     }).catch(function(err){
         clearTimeout(timer);
+        if(phoneFakeTickTimer){ clearInterval(phoneFakeTickTimer); phoneFakeTickTimer=null; }
         _reqInflight=Math.max(0,_reqInflight-1);
         if(overlayEl && window.Studia && window.Studia.LoadingProgress){
             try{ window.Studia.LoadingProgress.reset(overlayEl); }catch(_e){}
@@ -3564,6 +3592,7 @@ function callAPI(system,messages,maxTokens,opts){
         }
         throw finalErr;
     }).then(function(v){
+        if(phoneFakeTickTimer){ clearInterval(phoneFakeTickTimer); phoneFakeTickTimer=null; }
         _reqInflight=Math.max(0,_reqInflight-1);
         if(overlayEl && window.Studia && window.Studia.LoadingProgress){
             try{ window.Studia.LoadingProgress.done(overlayEl); }catch(_e){}
