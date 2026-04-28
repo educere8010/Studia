@@ -126,6 +126,36 @@
             padding:10px 12px;border-radius:8px;font-size:0.82rem;
             margin-bottom:12px;line-height:1.5;
         }
+        /* ── 무료체험 만료 안내 모달 ── */
+        .trial-modal{
+            position:fixed;inset:0;background:rgba(0,0,0,0.6);
+            display:none;align-items:center;justify-content:center;
+            z-index:10001;padding:20px;
+        }
+        .trial-modal.active{display:flex;}
+        .trial-modal-box{
+            background:#fff;border-radius:16px;max-width:420px;width:100%;
+            padding:30px 22px 24px;text-align:center;position:relative;
+            box-shadow:0 20px 60px rgba(0,0,0,0.3);
+        }
+        .trial-modal-close{
+            position:absolute;top:10px;right:10px;
+            width:32px;height:32px;border:none;background:var(--bg-gray);
+            border-radius:50%;font-size:1.2rem;cursor:pointer;color:var(--text-secondary);
+        }
+        .trial-modal-close:hover{background:var(--border);}
+        .trial-modal-icon{font-size:2.4rem;margin-bottom:6px;line-height:1;}
+        .trial-modal-box h3{
+            font-size:1.18rem;font-weight:700;color:var(--navy);
+            margin:6px 0 10px;
+        }
+        .trial-modal-box p{
+            font-size:0.95rem;color:var(--text-secondary);
+            line-height:1.6;margin:0 0 18px;
+        }
+        .trial-modal-box .btn{
+            font-size:1rem;padding:13px 18px;
+        }
         /* 첫 방문 동의 화면 */
         .consent-screen{
             padding:32px 24px;max-width:520px;margin:0 auto;
@@ -5088,6 +5118,7 @@ var SolutionReview=(function(){
             try{if(typeof StudyStreak!=='undefined' && StudyStreak.tick) StudyStreak.tick('solreview_done');}catch(e){}
         }).catch(function(err){
             console.warn('[SolutionReview] error:', err);
+            if(err && err.code==='TRIAL_EXPIRED'){ _resetToInput(); _updateUI(); return; } // 만료는 전역 모달이 안내
             if(typeof toast==='function') toast('검사 중 오류: '+(err && (err.message||err.code) || '알 수 없음'));
             _resetToInput();
             _updateUI();
@@ -5654,6 +5685,7 @@ var MathAnalysis={
             self.parseAndRender(response);
         }).catch(function(err){
             document.getElementById('mathLoading').classList.add('hidden');
+            if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
             toast('분석 중 오류가 발생했어요. 다시 시도해주세요!');
             console.error(err);
             self.renderFallback(err.message);
@@ -5896,6 +5928,7 @@ var MathConcept={
                         self.parseAndRender(response);
                     }).catch(function(err){
                         document.getElementById('mathConceptLoading').classList.add('hidden');
+                        if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
                         toast('생성 중 오류가 발생했어요. 다시 시도해주세요!');
                         console.error(err);
                     });
@@ -5912,6 +5945,7 @@ var MathConcept={
             self.parseAndRender(response);
         }).catch(function(err){
             document.getElementById('mathConceptLoading').classList.add('hidden');
+            if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
             toast('생성 중 오류가 발생했어요. 다시 시도해주세요!');
             console.error(err);
         });
@@ -6165,6 +6199,7 @@ var EngGrammar={
                         self.parseAndRender(response);
                     }).catch(function(err){
                         document.getElementById('engGrammarLoading').classList.add('hidden');
+                        if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
                         toast('생성 중 오류가 발생했어요. 다시 시도해주세요!');
                         console.error(err);
                     });
@@ -6181,6 +6216,7 @@ var EngGrammar={
             self.parseAndRender(response);
         }).catch(function(err){
             document.getElementById('engGrammarLoading').classList.add('hidden');
+            if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
             toast('생성 중 오류가 발생했어요. 다시 시도해주세요!');
             console.error(err);
         });
@@ -6459,6 +6495,7 @@ var EngAnalysis={
             self.parseAndRender(response);
         }).catch(function(err){
             document.getElementById('engLoading').classList.add('hidden');
+            if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
             toast('분석 중 오류가 발생했어요. 다시 시도해주세요!');
             console.error(err);
             self.renderFallback(err.message);
@@ -6823,6 +6860,7 @@ var KorGrammar={
                         self.parseAndRender(response);
                     }).catch(function(err){
                         document.getElementById('korGrammarLoading').classList.add('hidden');
+                        if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
                         toast('생성 중 오류가 발생했어요. 다시 시도해주세요!');
                         console.error(err);
                         self.renderFallback(err&&err.message?err.message:'');
@@ -6840,6 +6878,7 @@ var KorGrammar={
             self.parseAndRender(response);
         }).catch(function(err){
             document.getElementById('korGrammarLoading').classList.add('hidden');
+            if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
             toast('생성 중 오류가 발생했어요. 다시 시도해주세요!');
             console.error(err);
             self.renderFallback(err&&err.message?err.message:'');
@@ -7315,6 +7354,7 @@ var KorAnalysis={
             self.parseAndRender(response);
         }).catch(function(err){
             document.getElementById('korLoading').classList.add('hidden');
+            if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
             toast('분석 중 오류가 발생했어요. 다시 시도해주세요!');
             console.error(err);
             self.renderFallback(err.message);
@@ -7884,6 +7924,7 @@ var ProblemSolve={
                 self.parseAndRender(response);
             }).catch(function(err){
                 document.getElementById('probLoading').classList.add('hidden');
+                if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
                 toast('분석 중 오류가 발생했어요. 다시 시도해주세요.');
                 self.renderFallback((err&&err.message)?err.message:'오류가 발생했습니다.');
             });
@@ -8159,6 +8200,7 @@ var SocAnalysis={
                     self.parseAndRender(response);
                 }).catch(function(err){
                     document.getElementById('socLoading').classList.add('hidden');
+                    if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
                     toast('생성 중 오류가 발생했어요. 다시 시도해주세요!');
                     self.renderFallback(err.message);
                 });
@@ -8186,6 +8228,7 @@ var SocAnalysis={
                         self.parseAndRender(response);
                     }).catch(function(err){
                         document.getElementById('socLoading').classList.add('hidden');
+                        if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
                         toast('생성 중 오류가 발생했어요. 다시 시도해주세요!');
                         console.error(err);
                         self.renderFallback(err.message);
@@ -8214,6 +8257,7 @@ var SocAnalysis={
             self.parseAndRender(response);
         }).catch(function(err){
             document.getElementById('socLoading').classList.add('hidden');
+            if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
             toast('생성 중 오류가 발생했어요. 다시 시도해주세요!');
             console.error(err);
             self.renderFallback(err.message);
@@ -8796,6 +8840,7 @@ var SciConcept={
                 }
             }).catch(function(err){
                 document.getElementById('sciConceptLoading').classList.add('hidden');
+                if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
                 document.getElementById('sciConceptList').innerHTML='<div class="analysis-card"><p>오류: '+escHtml(err.message)+'</p></div>';
             });
         }
@@ -8846,6 +8891,7 @@ var SciConcept={
                         }
                     }).catch(function(err){
                         document.getElementById('sciDetailLoading').classList.add('hidden');
+                        if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
                         document.getElementById('sciTab1').innerHTML='<div class="analysis-card"><p>오류: '+escHtml(err.message)+'</p></div>';
                     });
                 } else {
@@ -8882,6 +8928,7 @@ var SciConcept={
             }
         }).catch(function(err){
             document.getElementById('sciDetailLoading').classList.add('hidden');
+            if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
             document.getElementById('sciTab1').innerHTML='<div class="analysis-card"><p>오류: '+escHtml(err.message)+'</p></div>';
         });
     },
@@ -9164,6 +9211,7 @@ document.getElementById('sciConceptBack').addEventListener('click',function(){sh
                 detailDiv.innerHTML='<div style="white-space:pre-wrap;line-height:1.8;font-size:14px;padding:16px;">'+escHtml(response).replace(/\n/g,'<br>')+'</div>';
                 if(typeof renderKaTeX==='function') renderKaTeX(detailDiv);
             }).catch(function(err){
+                if(err && err.code==='TRIAL_EXPIRED'){ detailDiv.innerHTML=''; return; } // 만료는 전역 모달이 안내
                 detailDiv.innerHTML='<div style="padding:20px;color:#d32f2f;">분석 중 오류가 발생했어요. 다시 시도해주세요.<br><small>'+escHtml(err&&err.message||'')+'</small></div>';
             });
         }).catch(function(){
@@ -9390,6 +9438,7 @@ var SciQuiz={
             }
         }).catch(function(err){
             document.getElementById('sciQuizLoading').classList.add('hidden');
+            if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
             toast('퀴즈 생성 중 오류가 발생했어요.');
             document.getElementById('sciQuizContent').innerHTML='<div class="analysis-card"><p>오류: '+escHtml(err.message)+'</p></div>';
         });
@@ -9622,6 +9671,7 @@ var SciExam={
             }
         }).catch(function(err){
             document.getElementById('sciExamLoading').classList.add('hidden');
+            if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
             toast('수능·학평 생성 중 오류가 발생했어요.');
             document.getElementById('sciExamContent').innerHTML='<div class="analysis-card"><p>오류: '+escHtml(err.message)+'</p></div>';
         });
@@ -9900,6 +9950,7 @@ function createQuizModule(cfg){
                 }
             }).catch(function(err){
                 document.getElementById(cfg.loadingId).classList.add('hidden');
+                if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
                 toast(cfg.errorMsg);
                 document.getElementById(cfg.contentId).innerHTML='<div class="analysis-card"><p>오류: '+escHtml(err.message)+'</p></div>';
             });
@@ -10345,6 +10396,7 @@ var HisAnalysis={
                     self.parseAndRender(response);
                 }).catch(function(err){
                     document.getElementById('hisLoading').classList.add('hidden');
+                    if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
                     toast('생성 중 오류가 발생했어요. 다시 시도해주세요!');
                     self.renderFallback(err.message);
                 });
@@ -10371,6 +10423,7 @@ var HisAnalysis={
                         self.parseAndRender(response);
                     }).catch(function(err){
                         document.getElementById('hisLoading').classList.add('hidden');
+                        if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
                         toast('생성 중 오류가 발생했어요. 다시 시도해주세요!');
                         self.renderFallback(err.message);
                     });
@@ -10396,6 +10449,7 @@ var HisAnalysis={
             self.parseAndRender(response);
         }).catch(function(err){
             document.getElementById('hisLoading').classList.add('hidden');
+            if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
             toast('생성 중 오류가 발생했어요. 다시 시도해주세요!');
             console.error(err);
             self.renderFallback(err.message);
@@ -12120,6 +12174,7 @@ var Chat={
                 streamBubble.element.parentNode.removeChild(streamBubble.element);
             }
             if(self.messages.length&&self.messages[self.messages.length-1].role==='user') self.messages.pop();
+            if(err && err.code==='TRIAL_EXPIRED') return; // 만료는 전역 모달이 안내
             // 고도화된 callAPI가 이미 사용자 친화적 메시지를 담아 던져줌
             var msg=(err&&err.message)?err.message:'잠시 문제가 생겼어 😥 다시 시도해줄래?';
             self.addError(area,msg);
@@ -12768,6 +12823,36 @@ var Chat={
         </div>
     </div>
 </div>
+
+<!-- ───── 무료체험 만료 안내 모달 ───── -->
+<div class="trial-modal" id="trialExpiredModal" role="dialog" aria-modal="true" aria-labelledby="trialExpiredTitle">
+    <div class="trial-modal-box">
+        <button class="trial-modal-close" id="trialExpiredClose" aria-label="닫기" type="button">&times;</button>
+        <div class="trial-modal-icon">🎁</div>
+        <h3 id="trialExpiredTitle">무료체험이 끝났어요</h3>
+        <p>구독하시면 모든 과목의 AI 튜터링을<br>계속 이용할 수 있어요.<br><b style="color:var(--navy-dark);">월 18,900원 (VAT 포함)</b></p>
+        <button class="btn btn-primary btn-block" id="trialExpiredCta" type="button">구독하고 계속 이용하기</button>
+    </div>
+</div>
+<script>
+(function(){
+    var modal=document.getElementById('trialExpiredModal');
+    if(!modal) return;
+    var closeBtn=document.getElementById('trialExpiredClose');
+    var cta=document.getElementById('trialExpiredCta');
+    function show(){ modal.classList.add('active'); }
+    function hide(){ modal.classList.remove('active'); }
+    if(closeBtn) closeBtn.addEventListener('click', hide);
+    modal.addEventListener('click', function(e){ if(e.target===modal) hide(); });
+    if(cta) cta.addEventListener('click', function(){
+        hide();
+        try{ if(typeof showScreen==='function') showScreen('screenBilling'); }catch(_e){}
+        try{ window.Studia && window.Studia.track && window.Studia.track('trial_expired_cta_click', {}); }catch(_e){}
+    });
+    // callAPI 가 만료 응답을 받으면 발행하는 이벤트를 듣고 모달을 띄운다.
+    window.addEventListener('studia:trial-expired', function(){ show(); });
+})();
+</script>
 
 <!-- 동의 플로우 스크립트 (4번) -->
 <script>
