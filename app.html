@@ -3439,7 +3439,10 @@ function _parseSseTextAll(txt, opts, onFinalUsage){
     return full;
 }
 
-function callAPI(system,messages,maxTokens,opts){
+// ── 단일 시도 (재시도 wrapper 는 아래 callAPI 에서 호출) ──
+// opts._isRetry=true 가 들어오면 연타방지(MIN_INTERVAL_MS) 검사를 스킵해서
+// 자동 재시도가 throttle 에 걸리지 않도록 한다.
+function _callAPIOnce(system,messages,maxTokens,opts){
     opts=opts||{};
 
     // Supabase 준비 확인
@@ -3453,10 +3456,10 @@ function callAPI(system,messages,maxTokens,opts){
         toast(API_MSG.CONCURRENT);
         return Promise.reject(apiError('RATE',API_MSG.CONCURRENT));
     }
-    // 연타 방지
+    // 연타 방지 (재시도 시엔 우회)
     var sig=_reqSignature(system,messages);
     var now=Date.now();
-    if(_reqLast[sig] && (now-_reqLast[sig])<MIN_INTERVAL_MS){
+    if(!opts._isRetry && _reqLast[sig] && (now-_reqLast[sig])<MIN_INTERVAL_MS){
         toast(API_MSG.THROTTLED);
         return Promise.reject(apiError('RATE',API_MSG.THROTTLED));
     }
@@ -3603,6 +3606,74 @@ function callAPI(system,messages,maxTokens,opts){
         try{window.Studia && window.Studia.track && window.Studia.track('api_success',{bytes:(v&&v.length)||0});}catch(e){}
         return v;
     });
+}
+
+// ════════════════════════════════════════════════════════════════
+// callAPI — 자동 재시도 wrapper
+// ────────────────────────────────────────────────────────────────
+// 안정성 보강 (1단계, 2026-04-28):
+//  Anthropic API 5xx / 429 / 일시적 네트워크 오류 / 타임아웃은
+//  1초 → 2초 → 4초 백오프로 최대 3회 자동 재시도.
+//  - AUTH(401/403), TRIAL_EXPIRED(402), BLOCKED(content_filter),
+//    EMPTY(빈 응답), NO_SESSION 은 재시도 안 함 (재시도해도 결과 동일)
+//  - 스트리밍이 한 번이라도 청크를 받기 시작했으면 재시도 안 함
+//    (status 200 받고 SSE 가 흐르기 시작한 후의 끊김은 재시도해도
+//     같은 끊김이 재발할 가능성이 큼 — 이건 폰 폴백(A-1)이 처리)
+//  - UI 토스트는 띄우지 않음(학생 신뢰 보호) — 콘솔 로그로만 추적
+// ════════════════════════════════════════════════════════════════
+var RETRY_BACKOFF_MS = [1000, 2000, 4000]; // 1, 2, 4초
+var RETRY_MAX = 3;
+function callAPI(system, messages, maxTokens, opts){
+    opts = opts || {};
+    // 이미 wrapper 가 호출한 _callAPIOnce 라면 그대로 통과 (방어)
+    if(opts._noRetryWrapper){
+        return _callAPIOnce(system, messages, maxTokens, opts);
+    }
+
+    // 스트리밍이 시작되면 재시도 끔 — onProgress 가 한 번이라도 호출되면 흐른 것
+    var streamStarted = false;
+    var origOnProgress = opts.onProgress;
+    var wrappedOpts = Object.assign({}, opts, {
+        _noRetryWrapper: true,
+        onProgress: function(full, delta){
+            streamStarted = true;
+            if(typeof origOnProgress === 'function'){
+                try{ origOnProgress(full, delta); }catch(_e){}
+            }
+        }
+    });
+
+    var attempt = 0;
+    function tryOnce(){
+        // 재시도 시점에는 _isRetry 플래그를 켜서 throttle 우회
+        var thisOpts = (attempt > 0)
+            ? Object.assign({}, wrappedOpts, { _isRetry: true })
+            : wrappedOpts;
+        return _callAPIOnce(system, messages, maxTokens, thisOpts).catch(function(err){
+            // 재시도 가능 여부 판단
+            var code = err && err.code;
+            var retriable = (code === 'RATE' && err.detail !== API_MSG.CONCURRENT && err.detail !== API_MSG.THROTTLED)
+                || code === 'SERVER'
+                || code === 'NETWORK'
+                || code === 'TIMEOUT';
+            // RATE 중 동시요청 제한/연타방지로 인한 거절은 재시도 의미 없음 (위에서 제외)
+            // 스트리밍이 시작됐으면 재시도 안 함
+            if(streamStarted) retriable = false;
+            // 재시도 횟수 초과
+            if(!retriable || attempt >= RETRY_MAX) throw err;
+
+            attempt++;
+            var delay = RETRY_BACKOFF_MS[attempt - 1] || 4000;
+            try{
+                console.warn('[Studia] AI API 일시 오류('+code+') — '+(delay/1000)+'초 후 자동 재시도 ('+attempt+'/'+RETRY_MAX+')', err && err.detail);
+                window.Studia && window.Studia.track && window.Studia.track('api_retry', {
+                    attempt: attempt, code: code, delay_ms: delay
+                });
+            }catch(_e){}
+            return new Promise(function(resolve){ setTimeout(resolve, delay); }).then(tryOnce);
+        });
+    }
+    return tryOnce();
 }
 
 // ── 이미지 업로드 검증 & 정규화 (JPEG 변환 + EXIF 회전 + 해상도 상한) ──
