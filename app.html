@@ -1351,8 +1351,29 @@
                 <div class="home-logo">Studi<span>a</span></div>
                 <p class="home-tagline">네가 풀 수 있게 만들어주는 AI 과외선생님</p>
                 <h2 class="home-title">오늘은 어떤 과목을<br>공부해볼까요?</h2>
+                <!-- 1. 리포트 & 오답노트 -->
+                <div class="home-actions">
+                    <button class="home-action-btn" id="btnReport" aria-label="학습 리포트 열기">
+                        <span class="home-action-icon">📊</span> 리포트
+                    </button>
+                    <button class="home-action-btn" id="btnWrongNote" aria-label="오답노트 열기">
+                        <span class="home-action-icon">📓</span> 오답노트 <span class="home-action-count" id="wrongCount" style="display:none;">0</span>
+                    </button>
+                </div>
+                <!-- 2. 각 과목 카드 -->
+                <div class="subject-list" id="subjectList"></div>
+                <!-- 3. 수학·과학 풀이 검사받기 카드 -->
+                <div class="solreview-card" id="solReviewCard" role="button" tabindex="0" aria-label="수학·과학 풀이 검사받기">
+                    <div class="solreview-card-icon">📐</div>
+                    <div class="solreview-card-body">
+                        <div class="solreview-card-title">수학·과학 풀이 검사받기</div>
+                        <div class="solreview-card-sub">필기·풀이 사진을 올리면 어디서 틀렸는지 단계별로 짚어드려요</div>
+                    </div>
+                    <div class="solreview-card-cta">시작 →</div>
+                </div>
+                <!-- 4. 오늘의 추천 -->
                 <div class="guide-banner" id="homeRecCard" style="margin:0 0 20px;text-align:left;">과목을 선택하면 AI가 <b>개념 정리, 풀이, 변형문제 학습</b>까지 도와드려요 ✨</div>
-                <!-- 연속 학습일 + 일일 목표 위젯 -->
+                <!-- 5. 연속 학습일 + 일일 목표 위젯 (오늘 진행) -->
                 <div class="streak-widget" id="streakWidget" style="margin:0 0 20px;display:none;" aria-label="학습 진행 상황">
                     <div class="streak-left">
                         <div class="streak-num" id="streakNum">0</div>
@@ -1367,7 +1388,7 @@
                         <div class="streak-best" id="streakBest" style="display:none;"></div>
                     </div>
                 </div>
-                <!-- 망각곡선 복습 위젯 -->
+                <!-- 6. 망각곡선 복습 위젯 (맨 아래) -->
                 <div class="review-widget" id="reviewWidget" style="margin:0 0 20px;display:none;" role="button" tabindex="0" aria-label="오늘의 복습">
                     <div class="review-widget-icon">🧠</div>
                     <div class="review-widget-body">
@@ -1376,24 +1397,6 @@
                     </div>
                     <div class="review-widget-cta" id="reviewWidgetCta">복습 시작 →</div>
                 </div>
-                <!-- 수학·과학 풀이 검사받기 카드 -->
-                <div class="solreview-card" id="solReviewCard" role="button" tabindex="0" aria-label="수학·과학 풀이 검사받기">
-                    <div class="solreview-card-icon">📐</div>
-                    <div class="solreview-card-body">
-                        <div class="solreview-card-title">수학·과학 풀이 검사받기</div>
-                        <div class="solreview-card-sub">필기·풀이 사진을 올리면 어디서 틀렸는지 단계별로 짚어드려요</div>
-                    </div>
-                    <div class="solreview-card-cta">시작 →</div>
-                </div>
-                <div class="home-actions">
-                    <button class="home-action-btn" id="btnReport" aria-label="학습 리포트 열기">
-                        <span class="home-action-icon">📊</span> 리포트
-                    </button>
-                    <button class="home-action-btn" id="btnWrongNote" aria-label="오답노트 열기">
-                        <span class="home-action-icon">📓</span> 오답노트 <span class="home-action-count" id="wrongCount" style="display:none;">0</span>
-                    </button>
-                </div>
-                <div class="subject-list" id="subjectList"></div>
             </div>
         </div>
     </div>
@@ -5897,6 +5900,27 @@ var MathConcept={
     data:null,
     chatContext:'',
 
+    // 분석 화면→채팅 인계용: data 구조에서 핵심 필드만 뽑아 짧은 요약 문자열 생성.
+    // (메인 분석 모듈들과 동일한 패턴)
+    buildChatHandoff:function(){
+        var d=this.data;
+        if(!d) return '';
+        var lines=[];
+        if(d.unit) lines.push('🎯 단원: '+d.unit);
+        var c=d.concept||{};
+        if(c.title) lines.push('📌 개념: '+c.title);
+        if(c.summary) lines.push('💡 요약: '+c.summary);
+        if(c.definitions && c.definitions.length){
+            var defs=c.definitions.slice(0,4).map(function(x){return x.term+'('+x.meaning+')';}).join(', ');
+            lines.push('📖 정의: '+defs);
+        }
+        if(c.formulas && c.formulas.length){
+            var fs=c.formulas.slice(0,4).map(function(x){return x.formula+(x.name?' ('+x.name+')':'');}).join(', ');
+            lines.push('📐 공식: '+fs);
+        }
+        return lines.join('\n');
+    },
+
     SYSTEM_PROMPT:'너는 Studia의 수학 개념 AI 과외선생님이야.\n학생이 수학 단원명(또는 질문)을 입력하면 반드시 JSON만 출력해. 다른 텍스트 금지.\n\n형식:\n{"unit":"단원명","concept":{"title":"개념명","summary":"핵심 개념을 한 문장으로 요약","definitions":[{"term":"용어/기호","meaning":"정의 설명"}],"formulas":[{"formula":"공식 (수학 기호 사용)","name":"공식 이름","when_to_use":"언제 사용하는지","caution":"주의사항/자주 틀리는 포인트"}],"visual_explanation":"개념을 직관적으로 이해할 수 있는 설명 (비유, 그림 묘사 등)","graph":{"functions":[{"fn":"함수식","color":"#4A40E0"}],"x_range":[-5,5],"y_range":[-2,10],"x_label":"x","y_label":"y"}},"worked_examples":[{"problem":"예제 문제","solution_steps":["풀이 1단계","풀이 2단계","풀이 3단계"],"answer":"최종 답","key_point":"이 문제에서 배울 점"}],"practice":[{"type":"기본|응용","question":"문제","options":["① ...","② ...","③ ...","④ ..."],"answer":"②","explanation":"해설","difficulty":"쉬움|보통|어려움"}],"advanced":[{"type":"수능|모의고사","question":"문제","options":["① ...","② ...","③ ...","④ ...","⑤ ..."],"answer":"③","explanation":"해설"}]}\n\n원칙:\n1. 정의는 2~4개, 공식은 2~5개. 공식에는 반드시 사용 시점과 주의사항.\n2. 예제 풀이는 2~3문제. 단계별로 상세하게.\n3. 확인문제는 4~5문제 (기본 2개 + 응용 2~3개).\n4. 심화문제는 수능 수준 2~3문제.\n5. 수학 기호: ², ³, √, ±, ≤, ≥, ≠, π, ∞ 등 적극 사용.\n6. 친근한 반말, 이모지 적절히.\n7. 수학 개념에 함수 그래프가 도움이 되면 graph 필드를 포함해. 함수식은 JavaScript 수학 문법 (예: "x^2", "sin(x)", "2*x+1", "x^3-3*x"). 그래프가 필요 없으면 graph 필드를 생략해도 돼.\n8. JSON만 출력. 마크다운 코드블록 쓰지 마.',
 
     SYSTEM_PROMPT_REF:'너는 Studia의 수학 개념 AI 과외선생님이야.\n\n아래에 제공된 [참고자료]는 이쌤이 직접 정리한 수학 개념 족보야. 이 자료를 최우선으로 활용해서 답변해.\n\n학생이 수학 단원명(또는 질문)을 입력하면 반드시 JSON만 출력해. 다른 텍스트 금지.\n\n형식:\n{"unit":"단원명","concept":{"title":"개념명","summary":"핵심 개념을 한 문장으로 요약","definitions":[{"term":"용어/기호","meaning":"정의 설명"}],"formulas":[{"formula":"공식 (수학 기호 사용)","name":"공식 이름","when_to_use":"언제 사용하는지","caution":"주의사항/자주 틀리는 포인트"}],"visual_explanation":"개념을 직관적으로 이해할 수 있는 설명 (비유, 그림 묘사 등)","graph":{"functions":[{"fn":"함수식","color":"#4A40E0"}],"x_range":[-5,5],"y_range":[-2,10],"x_label":"x","y_label":"y"}},"worked_examples":[{"problem":"예제 문제","solution_steps":["풀이 1단계","풀이 2단계","풀이 3단계"],"answer":"최종 답","key_point":"이 문제에서 배울 점"}],"practice":[{"type":"기본|응용","question":"문제","options":["① ...","② ...","③ ...","④ ..."],"answer":"②","explanation":"해설","difficulty":"쉬움|보통|어려움"}],"advanced":[{"type":"수능|모의고사","question":"문제","options":["① ...","② ...","③ ...","④ ...","⑤ ..."],"answer":"③","explanation":"해설"}]}\n\n원칙:\n1. [참고자료]의 개념, 공식, 예시를 적극 반영할 것.\n2. 정의는 2~4개, 공식은 2~5개. 공식에는 반드시 사용 시점과 주의사항.\n3. 예제 풀이는 2~3문제. 단계별로 상세하게.\n4. 확인문제는 4~5문제 (기본 2개 + 응용 2~3개).\n5. 심화문제는 수능 수준 2~3문제.\n6. 수학 기호: ², ³, √, ±, ≤, ≥, ≠, π, ∞ 등 적극 사용.\n7. 친근한 반말, 이모지 적절히.\n8. 수학 개념에 함수 그래프가 도움이 되면 graph 필드를 포함해. 함수식은 JavaScript 수학 문법 (예: "x^2", "sin(x)", "2*x+1", "x^3-3*x"). 그래프가 필요 없으면 graph 필드를 생략해도 돼.\n9. JSON만 출력. 마크다운 코드블록 쓰지 마.',
@@ -6087,7 +6111,7 @@ document.getElementById('mathConceptBtn').addEventListener('click',function(){Ma
 document.getElementById('mathConceptBack').addEventListener('click',function(){showScreen('screenMathInput');});
 document.getElementById('mathConceptNew').addEventListener('click',function(){showScreen('screenMathInput');});
 document.getElementById('mathConceptChat').addEventListener('click',function(){
-    if(MathConcept.chatContext) Chat.open('math_concept',MathConcept.chatContext);
+    if(MathConcept.chatContext) Chat.open('math_concept',MathConcept.chatContext,MathConcept.buildChatHandoff());
 });
 
 // MathConcept 탭 전환
@@ -6167,6 +6191,26 @@ document.getElementById('engGrammarLevel').addEventListener('change',function(){
 var EngGrammar={
     data:null,
     chatContext:'',
+
+    // 분석 화면→채팅 인계용: data 구조에서 핵심 필드만 뽑아 짧은 요약 문자열 생성.
+    buildChatHandoff:function(){
+        var d=this.data;
+        if(!d) return '';
+        var lines=[];
+        if(d.unit) lines.push('🎯 단원: '+d.unit);
+        var c=d.concept||{};
+        if(c.title) lines.push('📌 개념: '+c.title);
+        if(c.summary) lines.push('💡 요약: '+c.summary);
+        if(c.rules && c.rules.length){
+            var rs=c.rules.slice(0,4).map(function(x,i){return (i+1)+'. '+x.rule;}).join(' / ');
+            lines.push('📖 규칙: '+rs);
+        }
+        if(c.comparison && c.comparison.items && c.comparison.items.length){
+            var cs=c.comparison.items.slice(0,3).map(function(x){return x.a+' vs '+x.b;}).join(', ');
+            lines.push('🔍 비교: '+cs);
+        }
+        return lines.join('\n');
+    },
 
     SYSTEM_PROMPT:'너는 Studia의 영어 문법 AI 과외선생님이야.\n학생이 문법 단원명(또는 질문)을 입력하면 반드시 JSON만 출력해. 다른 텍스트 금지.\n\n형식:\n{"unit":"단원명","concept":{"title":"문법 개념명","summary":"핵심 개념 요약 (이해하기 쉽게)","rules":[{"rule":"규칙/공식","explanation":"쉬운 설명","caution":"주의사항/자주 틀리는 포인트"}],"comparison":{"title":"헷갈리는 개념 비교","items":[{"a":"A 표현","b":"B 표현","difference":"차이점 설명"}]}},"examples":[{"sentence":"예문 (영어)","translation":"해석","highlight":"핵심 문법 부분","grammar_point":"문법 설명"}],"quiz":[{"type":"빈칸","question":"문제","options":["①...","②...","③...","④..."],"answer":"②","explanation":"해설"},{"type":"어법","question":"문제","options":["①...","②...","③...","④..."],"answer":"③","explanation":"해설"}],"exam_questions":[{"type":"수능어법","question":"문제","options":["①...","②...","③...","④...","⑤..."],"answer":"③","explanation":"해설"}]}\n\n원칙:\n1. 규칙은 3~5개. 각 규칙에 주의사항 필수.\n2. 예문은 5~8개 (수능 수준).\n3. 퀴즈는 빈칸 3개 + 어법 3개 = 6문제.\n4. 수능문제는 5지선다 2~3문제.\n5. 친근한 반말, 이모지 적절히.\n6. JSON만 출력. 마크다운 코드블록 쓰지 마.',
 
@@ -6336,7 +6380,7 @@ document.getElementById('engGrammarBtn').addEventListener('click',function(){Eng
 document.getElementById('engGrammarBack').addEventListener('click',function(){showScreen('screenEngInput');});
 document.getElementById('engGrammarNew').addEventListener('click',function(){showScreen('screenEngInput');});
 document.getElementById('engGrammarChat').addEventListener('click',function(){
-    if(EngGrammar.chatContext) Chat.open('english_grammar',EngGrammar.chatContext);
+    if(EngGrammar.chatContext) Chat.open('english_grammar',EngGrammar.chatContext,EngGrammar.buildChatHandoff());
 });
 
 // 영어 문법 탭 전환
@@ -6829,6 +6873,26 @@ var KorGrammar={
     data:null,
     chatContext:'',
 
+    // 분석 화면→채팅 인계용: data 구조에서 핵심 필드만 뽑아 짧은 요약 문자열 생성.
+    buildChatHandoff:function(){
+        var d=this.data;
+        if(!d) return '';
+        var lines=[];
+        if(d.unit) lines.push('🎯 단원: '+d.unit);
+        var c=d.concept||{};
+        if(c.title) lines.push('📌 개념: '+c.title);
+        if(c.summary) lines.push('💡 요약: '+c.summary);
+        if(c.rules && c.rules.length){
+            var rs=c.rules.slice(0,4).map(function(x,i){return (i+1)+'. '+x.rule;}).join(' / ');
+            lines.push('📖 규칙: '+rs);
+        }
+        if(c.comparison && c.comparison.items && c.comparison.items.length){
+            var cs=c.comparison.items.slice(0,3).map(function(x){return x.a+' vs '+x.b;}).join(', ');
+            lines.push('🔍 비교: '+cs);
+        }
+        return lines.join('\n');
+    },
+
     SYSTEM_PROMPT:'너는 Studia의 국어 문법 AI 과외선생님이야.\n학생이 문법 단원명(또는 질문)을 입력하면 반드시 JSON만 출력해. 다른 텍스트 금지.\n\n형식:\n{"unit":"단원명","concept":{"title":"문법 개념명","summary":"핵심 개념 요약 (이해하기 쉽게)","rules":[{"rule":"규칙/원리","explanation":"쉬운 설명","examples":"예시","caution":"주의사항/자주 틀리는 포인트"}],"comparison":{"title":"헷갈리는 개념 비교","items":[{"a":"A 개념","b":"B 개념","difference":"차이점 설명"}]}},"practice":[{"word_or_sentence":"분석 대상","analysis":"분석 결과","explanation":"설명"}],"quiz":[{"type":"개념|분석|적용","question":"문제","options":["①...","②...","③...","④..."],"answer":"②","explanation":"해설"}],"exam_questions":[{"type":"수능문법","question":"문제","options":["①...","②...","③...","④...","⑤..."],"answer":"③","explanation":"해설"}]}\n\n원칙:\n1. 규칙은 3~5개. 각 규칙에 예시와 주의사항 필수.\n2. 연습문제는 5~8개 (단어/문장 분석).\n3. 퀴즈는 4~6문제.\n4. 수능문제는 5지선다 2~3문제.\n5. 친근한 반말, 이모지 적절히.\n6. JSON만 출력. 마크다운 코드블록 쓰지 마.\n7. JSON 필드 값(summary, rule, explanation, examples 등) 안에서도 마크다운 기호(**, *, __, _, `, ~~, # 등)를 절대 쓰지 마. 모든 텍스트는 평문(plain text)으로만 작성해. 강조가 필요하면 ⭐ 같은 이모지만 사용.\n8. 필드 값 안에 HTML 태그(<b>, <br>, <strong> 등) 넣지 마.',
 
     SYSTEM_PROMPT_REF:'너는 Studia의 국어 문법 AI 과외선생님이야.\n\n아래에 제공된 [참고자료]는 이쌤이 직접 정리한 문법 족보야. 이 자료를 최우선으로 활용해서 답변해.\n\n학생이 문법 단원명(또는 질문)을 입력하면 반드시 JSON만 출력해. 다른 텍스트 금지.\n\n형식:\n{"unit":"단원명","concept":{"title":"문법 개념명","summary":"핵심 개념 요약 (이해하기 쉽게)","rules":[{"rule":"규칙/원리","explanation":"쉬운 설명","examples":"예시","caution":"주의사항/자주 틀리는 포인트"}],"comparison":{"title":"헷갈리는 개념 비교","items":[{"a":"A 개념","b":"B 개념","difference":"차이점 설명"}]}},"practice":[{"word_or_sentence":"분석 대상","analysis":"분석 결과","explanation":"설명"}],"quiz":[{"type":"개념|분석|적용","question":"문제","options":["①...","②...","③...","④..."],"answer":"②","explanation":"해설"}],"exam_questions":[{"type":"수능문법","question":"문제","options":["①...","②...","③...","④...","⑤..."],"answer":"③","explanation":"해설"}]}\n\n원칙:\n1. [참고자료]의 개념 설명, 규칙, 예시를 적극 반영할 것.\n2. 규칙은 3~5개. 각 규칙에 예시와 주의사항 필수.\n3. 연습문제는 5~8개 (단어/문장 분석).\n4. 퀴즈는 4~6문제.\n5. 수능문제는 5지선다 2~3문제.\n6. 친근한 반말, 이모지 적절히.\n7. JSON만 출력. 마크다운 코드블록 쓰지 마.\n8. JSON 필드 값(summary, rule, explanation, examples 등) 안에서도 마크다운 기호(**, *, __, _, `, ~~, # 등)를 절대 쓰지 마. 모든 텍스트는 평문(plain text)으로만 작성해. 강조가 필요하면 ⭐ 같은 이모지만 사용.\n9. 필드 값 안에 HTML 태그(<b>, <br>, <strong> 등) 넣지 마.',
@@ -7084,7 +7148,7 @@ document.getElementById('korGrammarBtn').addEventListener('click',function(){Kor
 document.getElementById('korGrammarBack').addEventListener('click',function(){showScreen('screenKorInput');});
 document.getElementById('korGrammarNew').addEventListener('click',function(){showScreen('screenKorInput');});
 document.getElementById('korGrammarChat').addEventListener('click',function(){
-    if(KorGrammar.chatContext) Chat.open('korean_grammar',KorGrammar.chatContext);
+    if(KorGrammar.chatContext) Chat.open('korean_grammar',KorGrammar.chatContext,KorGrammar.buildChatHandoff());
 });
 
 // 국어 문법 탭 전환
