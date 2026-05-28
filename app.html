@@ -1271,10 +1271,7 @@
                 💳 카드 등록하고 시작하기
             </button>
             <div style="margin-top:14px;padding:10px 12px;background:var(--blue-pale);border-radius:8px;font-size:0.76rem;color:var(--navy-dark);line-height:1.5;">
-                🔒 결제 정보는 <b>토스페이먼츠</b>가 직접 처리하며, Studia 서버에는 카드번호가 저장되지 않습니다.
-            </div>
-            <div style="margin-top:10px;padding:8px 12px;background:#fff6e5;border:1px dashed #d4a93a;border-radius:8px;font-size:0.74rem;color:#7a5100;text-align:center;line-height:1.5;">
-                (테스트 모드) 다음 단계에서 실제 토스 결제창이 열립니다
+                🔒 결제 정보는 <b>Portone(포트원)</b>이 직접 처리하며, Studia 서버에는 카드번호가 저장되지 않습니다.
             </div>
             <div class="setup-legal-links" style="margin-top:16px;">
                 <a id="billingOpenTerms" tabindex="0" role="button">이용약관</a>
@@ -5438,7 +5435,6 @@ var SolutionReview=(function(){
 
     if(regBtn){
         regBtn.addEventListener('click',function(){
-            alert('(테스트 모드)\n\n다음 단계에서 토스페이먼츠 결제창이 열립니다.\n\n실제 카드 등록은 Phase 2에서 연결됩니다.');
             try{window.Studia && window.Studia.track && window.Studia.track('billing_stub_click',{});}catch(e){}
         });
     }
@@ -11975,7 +11971,6 @@ document.getElementById('btnReport').addEventListener('click',function(){Report.
             } else {
                 msg+='무료체험 중\n자동결제 예정일: '+fmtKoreanDate(_subInfo.trial_ends_at)+'\n결제 금액: 18,900원 (VAT 포함)';
             }
-            msg+='\n\n(테스트 모드 — Phase 2에서 실제 토스 결제 정보와 연결됩니다)';
             alert(msg);
         });
     }
@@ -11986,7 +11981,6 @@ document.getElementById('btnReport').addEventListener('click',function(){Report.
             if(cancelBtn.disabled) return;
             closeMenu();
             if(!confirm('정말로 구독을 해지하시겠어요?\n\n• 자동결제가 취소됩니다.\n• 남은 체험 기간 동안은 계속 이용할 수 있어요.\n• 재가입은 언제든 가능합니다.')) return;
-            alert('(테스트 모드)\n\n해지 요청이 접수되었어요.\n실제 해지 연동은 Phase 2에서 추가됩니다.');
         });
     }
 
