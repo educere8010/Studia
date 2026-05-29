@@ -421,10 +421,31 @@
     function psOpen() {
       try {
         psEnsureSheet();
+        // 1) 일단 기존 캐시로 즉시 그림 (시각적 깜빡임 방지)
         psRefreshMain();
         if (psSubEl) psSubEl.classList.remove('ps-open-sub');
         psSheet.classList.add('ps-open');
+        // 2) 그 다음 user 데이터를 새로 가져와 다시 그림
+        //    (온보딩에서 방금 저장한 학년/관심과목/이름 반영)
+        psFetchUserAndRefresh();
       } catch (e) { console.warn('[profile-sheet] 시트 열기 실패', e); }
+    }
+
+    function psFetchUserAndRefresh() {
+      try {
+        var sb = (window.Studia && window.Studia.sb) || null;
+        if (!sb || !sb.auth || typeof sb.auth.getUser !== 'function') return;
+        sb.auth.getUser().then(function (res) {
+          try {
+            if (res && res.data && res.data.user) {
+              window._psUserCache = res.data.user;
+              psRefreshMain();
+              // 구독 화면이 열려있으면 그것도 다시 그림
+              if (psSubEl && psSubEl.classList.contains('ps-open-sub')) psRefreshSub();
+            }
+          } catch (e) {}
+        }).catch(function () {});
+      } catch (e) {}
     }
 
     function psClose() {
@@ -579,7 +600,7 @@
         }, 100);
         // 사용자 정보 비동기 캐시
         setTimeout(psCacheUser, 1500);
-        console.log('[profile-sheet] 초기화 완료 (v3)');
+        console.log('[profile-sheet] 초기화 완료 (v4)');
       } catch (e) {
         console.warn('[profile-sheet] 초기화 실패', e);
       }
