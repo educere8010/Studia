@@ -186,6 +186,7 @@
       var sub = data.sub;
       var planRow = '';
       var nextDateRow = '';
+      var subscriptionRow = '';  // PG 등록된 경우에만 표시
       if (sub && sub.trial_ends_at) {
         var dleft = psDaysLeft(sub.trial_ends_at);
         var planText;
@@ -206,9 +207,15 @@
             '<div class="ps-row-value">' + psEscape(psFormatDate(sub.trial_ends_at)) + '</div>' +
             '<div class="ps-row-arrow">›</div>' +
           '</button>';
+        subscriptionRow =
+          '<button class="ps-row" data-ps-act="subscription">' +
+            '<div class="ps-row-icon">💳</div>' +
+            '<div class="ps-row-label">구독 관리</div>' +
+            '<div class="ps-row-arrow">›</div>' +
+          '</button>';
       } else {
         planRow =
-          '<button class="ps-row" data-ps-act="subscription">' +
+          '<button class="ps-row" data-ps-act="register-payment">' +
             '<div class="ps-row-icon">💳</div>' +
             '<div class="ps-row-label">결제수단 등록하기</div>' +
             '<div class="ps-row-arrow">›</div>' +
@@ -248,11 +255,7 @@
         '<div class="ps-card">',
           planRow,
           nextDateRow,
-          '<button class="ps-row" data-ps-act="subscription">',
-            '<div class="ps-row-icon">💳</div>',
-            '<div class="ps-row-label">구독 관리</div>',
-            '<div class="ps-row-arrow">›</div>',
-          '</button>',
+          subscriptionRow,
         '</div>',
         '<div class="ps-section-label">계정</div>',
         '<div class="ps-card">',
@@ -470,23 +473,19 @@
             break;
           case 'onboarding':
             psClose();
-            try {
-              if (typeof Onboarding !== 'undefined' && Onboarding.open) Onboarding.open('redo');
-            } catch (err) {}
+            setTimeout(function () { psClickHidden('menuRedoOnboarding'); }, 200);
             break;
           case 'logout':
             psClose();
             psClickHidden('menuLogout');
             break;
           case 'terms':
-            try {
-              if (typeof openModal === 'function') openModal('modalTerms');
-            } catch (err) {}
+            psClose();
+            setTimeout(function () { psClickHidden('setupOpenTerms'); }, 200);
             break;
           case 'privacy':
-            try {
-              if (typeof openModal === 'function') openModal('modalPrivacy');
-            } catch (err) {}
+            psClose();
+            setTimeout(function () { psClickHidden('setupOpenPrivacy'); }, 200);
             break;
           case 'contact':
             try { window.location.href = 'mailto:hkbyoo@studia.co.kr'; } catch (err) {}
@@ -580,7 +579,7 @@
         }, 100);
         // 사용자 정보 비동기 캐시
         setTimeout(psCacheUser, 1500);
-        console.log('[profile-sheet] 초기화 완료 (v2)');
+        console.log('[profile-sheet] 초기화 완료 (v3)');
       } catch (e) {
         console.warn('[profile-sheet] 초기화 실패', e);
       }
