@@ -35,8 +35,14 @@
   }
 
   // Supabase 세션 토큰 가져오기
+  // (app.html 은 글로벌 sb 가 아니라 window.Studia.sb 로 노출하므로
+  //  여기서 항상 window.Studia.sb 를 직접 참조)
+  function getSb() {
+    return (typeof window !== 'undefined' && window.Studia && window.Studia.sb) || null;
+  }
   async function getAuthToken() {
-    if (typeof sb === 'undefined' || !sb) throw new Error('Supabase 클라이언트 없음');
+    var sb = getSb();
+    if (!sb) throw new Error('Supabase 클라이언트 없음');
     var { data: { session } } = await sb.auth.getSession();
     if (!session) throw new Error('로그인 필요');
     return session.access_token;
@@ -99,6 +105,8 @@
     }
 
     var token = await getAuthToken();
+    var sb = getSb();
+    if (!sb) throw new Error('Supabase 클라이언트 없음');
     var { data: { user } } = await sb.auth.getUser();
     if (!user) throw new Error('유저 정보 없음');
 
@@ -133,9 +141,9 @@
     };
   }
 
-  // ──────────────────────────────────────────────
+  // ──────────────────────────────────────────
   // Edge Function에 빌링키 저장
-  // ──────────────────────────────────────────────
+  // ──────────────────────────────────────────
   async function saveBillingKeyToServer(billingKey, pgProvider, token) {
     var res = await fetch(getBillingFnUrl('save-key'), {
       method: 'POST',
@@ -152,9 +160,9 @@
     return data;
   }
 
-  // ──────────────────────────────────────────────
+  // ─────────────────────────────────────────────
   // 로딩 오버레이
-  // ──────────────────────────────────────────────
+  // ───────────────────────────────────────────
   function showLoading(msg) {
     var el = document.getElementById('portone-loading');
     if (!el) {
@@ -213,7 +221,7 @@
     }
   }
 
-  // ──────────────────────────────────────────────
+  // ─────────────────────────────────────────────
   // 카드 등록 버튼 핸들러 (billingRegBtn)
   // ──────────────────────────────────────────────
   function attachBillingButton() {
@@ -249,9 +257,9 @@
     });
   }
 
-  // ──────────────────────────────────────────────
+  // ─────────────────────────────────────────────
   // 구독 해지 핸들러 (menuSubscription)
-  // ──────────────────────────────────────────────
+  // ─────────────────────────────────────────────
   function attachCancelButton() {
     var menuBtn = document.getElementById('menuSubscription');
     if (!menuBtn) return;
@@ -295,9 +303,9 @@
     });
   }
 
-  // ──────────────────────────────────────────────
+  // ─────────────────────────────────────────────
   // 약관·개인정보 링크 핸들러
-  // ──────────────────────────────────────────────
+  // ─────────────────────────────────────────────
   function attachLegalLinks() {
     var openTerms   = document.getElementById('billingOpenTerms');
     var openPrivacy = document.getElementById('billingOpenPrivacy');
@@ -305,7 +313,7 @@
     if (openPrivacy) openPrivacy.addEventListener('click', function(){try{document.getElementById('setupOpenPrivacy').click();}catch(e){}});
   }
 
-  // ──────────────────────────────────────────────
+  // ─────────────────────────────────────────────
   // #billing 해시로 직접 접근 시 화면 이동
   // ──────────────────────────────────────────────
   function handleBillingHash() {
