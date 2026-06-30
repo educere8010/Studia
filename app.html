@@ -37,13 +37,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://api.anthropic.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdn.portone.io" crossorigin>
     <link rel="dns-prefetch" href="https://api.anthropic.com">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.portone.io/v2/browser-sdk.js"></script>
-    <script src="portone-billing.js"></script>
-    <script src="profile-sheet.js"></script>    
+    <script defer src="https://cdn.portone.io/v2/browser-sdk.js"></script>
+    <script defer src="portone-billing.js"></script>
     <style>
         /* Studia 전역 스타일 */
         *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
@@ -1258,7 +1258,7 @@
     </div>
 
     <!-- SETUP -->
-    <!-- BILLING — 결제수단 등록 (신규 가입자 필수 통과 화면 · Phase 1 UI) -->
+    <!-- BILLING — 결제수단 등록 (신규 가입자 필수 통과 화면) -->
     <div class="screen setup-screen" id="screenBilling">
         <div class="setup-logo">Studi<span>a</span></div>
         <div style="font-size:2.2rem;margin:10px 0 6px;">🎁</div>
@@ -1267,14 +1267,17 @@
         <div class="setup-box" style="text-align:left;">
             <ul style="list-style:none;padding:0;margin:0 0 18px;font-size:0.88rem;color:var(--text-secondary);line-height:1.7;">
                 <li style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;"><span style="color:var(--blue);font-weight:700;">•</span><span>7일 후 월 <b>18,900원</b>이 자동 청구됩니다</span></li>
-                <li style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;"><span style="color:var(--blue);font-weight:700;">•</span><span>체험 5일차부터 프로필 메뉴에서 해지할 수 있어요</span></li>
+                <li style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;"><span style="color:var(--blue);font-weight:700;">•</span><span>체험 기간 중 언제든 프로필 메뉴에서 해지할 수 있어요</span></li>
                 <li style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;"><span style="color:var(--blue);font-weight:700;">•</span><span>해지해도 남은 체험 기간은 끝까지 이용 가능</span></li>
             </ul>
             <button class="btn btn-primary btn-block" id="billingRegBtn" style="font-size:1.02rem;padding:14px 20px;">
                 💳 카드 등록하고 시작하기
             </button>
             <div style="margin-top:14px;padding:10px 12px;background:var(--blue-pale);border-radius:8px;font-size:0.76rem;color:var(--navy-dark);line-height:1.5;">
-                🔒 결제 정보는 <b>Portone(포트원)</b>이 직접 처리하며, Studia 서버에는 카드번호가 저장되지 않습니다.
+                🔒 결제 정보는 <b>포트원(PortOne)</b>을 통해 <b>NHN KCP(주)</b>가 직접 처리하며, Studia 서버에는 카드번호가 저장되지 않습니다.
+            </div>
+            <div style="margin-top:10px;padding:8px 12px;background:#fff6e5;border:1px dashed #d4a93a;border-radius:8px;font-size:0.74rem;color:#7a5100;text-align:center;line-height:1.5;">
+                등록 즉시 결제되지 않으며, 무료체험 종료 후 자동결제가 시작됩니다
             </div>
             <div class="setup-legal-links" style="margin-top:16px;">
                 <a id="billingOpenTerms" tabindex="0" role="button">이용약관</a>
@@ -1329,8 +1332,8 @@
                     <span class="profile-menu-icon">💳</span>
                     <span class="profile-menu-text">구독 관리</span>
                 </button>
-                <!-- 구독 해지 (체험 5일차부터 활성화) -->
-                <button class="profile-menu-item" id="menuCancel" role="menuitem" disabled aria-disabled="true" style="opacity:0.5;cursor:not-allowed;" title="체험 5일차부터 해지할 수 있어요">
+                <!-- 구독 해지 -->
+                <button class="profile-menu-item" id="menuCancel" role="menuitem" disabled aria-disabled="true" style="opacity:0.5;cursor:not-allowed;" title="결제수단 등록 후 해지할 수 있어요">
                     <span class="profile-menu-icon">❌</span>
                     <span class="profile-menu-text">구독 해지</span>
                 </button>
@@ -2672,75 +2675,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
-<!-- 학습 데이터 사전 로드 (file:// 프로토콜 대응) -->
-<script src="data/algebra.js"></script>
-<script src="data/biology1.js"></script>
-<script src="data/biology2.js"></script>
-<script src="data/calculus.js"></script>
-<script src="data/calculus_combined.js"></script>
-<script src="data/common_math1.js"></script>
-<script src="data/common_math2.js"></script>
-<script src="data/chemistry1.js"></script>
-<script src="data/chemistry2.js"></script>
-<script src="data/common_korean.js"></script>
-<script src="data/earthscience1.js"></script>
-<script src="data/earthscience2.js"></script>
-<script src="data/eastasian_history.js"></script>
-<script src="data/eng_grammar_advanced.js"></script>
-<script src="data/eng_grammar_basic.js"></script>
-<script src="data/eng_grammar_master.js"></script>
-<script src="data/eng_grammar_standard.js"></script>
-<script src="data/ethics.js"></script>
-<script src="data/history_korea.js"></script>
-<script src="data/history_world.js"></script>
-<script src="data/integrated.js"></script>
-<script src="data/integrated_science.js"></script>
-<script src="data/integrated_social.js"></script>
-<script src="data/kor_grammar_high.js"></script>
-<script src="data/kor_grammar_mid.js"></script>
-<script src="data/korean_exam.js"></script>
-<script src="data/korean_geography.js"></script>
-<script src="data/korean_history.js"></script>
-<script src="data/lang_media.js"></script>
-<script src="data/lit_classical_poetry.js"></script>
-<script src="data/lit_classical_prose.js"></script>
-<script src="data/lit_exam.js"></script>
-<script src="data/lit_exam_poetry.js"></script>
-<script src="data/lit_exam_novel.js"></script>
-<script src="data/lit_exam_classical.js"></script>
-<script src="data/lit_history.js"></script>
-<script src="data/lit_history_poetry.js"></script>
-<script src="data/lit_history_novel.js"></script>
-<script src="data/lit_history_classical.js"></script>
-<script src="data/lit_modern_poetry.js"></script>
-<script src="data/lit_modern_prose.js"></script>
-<script src="data/lit_theory.js"></script>
-<script src="data/lit_theory_poetry.js"></script>
-<script src="data/lit_theory_novel.js"></script>
-<script src="data/lit_theory_classical.js"></script>
-<script src="data/literature.js"></script>
-<script src="data/math1.js"></script>
-<script src="data/math2.js"></script>
-<script src="data/math_high1.js"></script>
-<script src="data/math_mid1.js"></script>
-<script src="data/math_mid2.js"></script>
-<script src="data/math_mid3.js"></script>
-<script src="data/mid_moral.js"></script>
-<script src="data/mid_science1.js"></script>
-<script src="data/mid_science2.js"></script>
-<script src="data/mid_science3.js"></script>
-<script src="data/mid_social.js"></script>
-<script src="data/mid_social1.js"></script>
-<script src="data/mid_social2.js"></script>
-<script src="data/physics1.js"></script>
-<script src="data/physics2.js"></script>
-<script src="data/politics_law.js"></script>
-<script src="data/probability.js"></script>
-<script src="data/reading.js"></script>
-<script src="data/rhetoric_writing.js"></script>
-<script src="data/social_culture.js"></script>
-<script src="data/world_geography.js"></script>
-<script src="data/world_history.js"></script>
+<!-- 학습 데이터는 과목/단원 사용 시점에 필요한 파일만 로드합니다. -->
 
 <script>
 /* ═══════════════════════════════════════
@@ -4291,7 +4226,7 @@ function _studiaAfterAuth(){
     try{sessionStorage.removeItem('studia_key');}catch(e){}
     // 오답노트를 클라우드에서 불러옴 (이전 localStorage 데이터가 있으면 자동 마이그레이션)
     try{if(typeof WrongNote!=='undefined' && WrongNote._load){WrongNote._load();}}catch(e){}
-    // 온보딩 완료 여부 조회 → 미완료면 온보딩, 완료면 홈
+    // 구독/결제수단 상태와 온보딩 완료 여부 조회 → 필요한 화면으로 분기
     var sb=(window.Studia && window.Studia.sb) || null;
     if(!sb){
         showScreen('screenHome');
@@ -4300,30 +4235,44 @@ function _studiaAfterAuth(){
         try{if(typeof ReviewQueue!=='undefined') ReviewQueue.render();}catch(e){}
         return;
     }
-    sb.auth.getUser().then(function(res){
-        var meta=(res && res.data && res.data.user && res.data.user.user_metadata)||{};
+    function goAfterBilling(meta){
         if(!meta.onboarded){
             try{if(typeof Onboarding!=='undefined') Onboarding.open('auto'); else showScreen('screenHome');}catch(e){showScreen('screenHome');}
-        } else {
-            try{if(typeof TodayRec!=='undefined' && Array.isArray(meta.interests)) TodayRec.setInterests(meta.interests);}catch(e){}
-            try{if(typeof TodayRec!=='undefined' && meta.grade) TodayRec.setGrade(meta.grade);}catch(e){}
-            showScreen('screenHome');
-            // 위젯/추천은 즉시 렌더, 오답노트가 로드되고 나면 다시 한 번 갱신
-            try{if(typeof StudyStreak!=='undefined') StudyStreak.render();}catch(e){}
-            setTimeout(function(){
-                try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}
-                try{if(typeof ReviewQueue!=='undefined') ReviewQueue.render();}catch(e){}
-            },300);
-            // WrongNote 로드 완료 후 위젯 재렌더 (오답노트가 클라우드에서 시간이 좀 걸릴 수 있음)
-            try{
-                if(typeof WrongNote!=='undefined' && WrongNote._loading){
-                    WrongNote._loading.then(function(){
-                        try{if(typeof ReviewQueue!=='undefined') ReviewQueue.render();}catch(e){}
-                        try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}
-                    });
-                }
-            }catch(e){}
+            return;
         }
+        try{if(typeof TodayRec!=='undefined' && Array.isArray(meta.interests)) TodayRec.setInterests(meta.interests);}catch(e){}
+        try{if(typeof TodayRec!=='undefined' && meta.grade) TodayRec.setGrade(meta.grade);}catch(e){}
+        showScreen('screenHome');
+        // 위젯/추천은 즉시 렌더, 오답노트가 로드되고 나면 다시 한 번 갱신
+        try{if(typeof StudyStreak!=='undefined') StudyStreak.render();}catch(e){}
+        setTimeout(function(){
+            try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}
+            try{if(typeof ReviewQueue!=='undefined') ReviewQueue.render();}catch(e){}
+        },300);
+        // WrongNote 로드 완료 후 위젯 재렌더 (오답노트가 클라우드에서 시간이 좀 걸릴 수 있음)
+        try{
+            if(typeof WrongNote!=='undefined' && WrongNote._loading){
+                WrongNote._loading.then(function(){
+                    try{if(typeof ReviewQueue!=='undefined') ReviewQueue.render();}catch(e){}
+                    try{if(typeof TodayRec!=='undefined') TodayRec.render();}catch(e){}
+                });
+            }
+        }catch(e){}
+    }
+    sb.auth.getUser().then(function(res){
+        var user=res && res.data && res.data.user;
+        var meta=(user && user.user_metadata)||{};
+        if(!user){showScreen('screenAuth');return;}
+        return sb.rpc('get_subscription_status',{p_user_id:user.id}).then(function(r){
+            var status=r && r.data;
+            if(status && status.state==='needs_payment_method'){
+                showScreen('screenBilling');
+                return;
+            }
+            goAfterBilling(meta);
+        }).catch(function(){
+            goAfterBilling(meta);
+        });
     }).catch(function(){
         showScreen('screenHome');
         try{if(typeof StudyStreak!=='undefined') StudyStreak.render();}catch(e){}
@@ -5427,20 +5376,13 @@ var SolutionReview=(function(){
 })();
 
 // ════════════════════
-//  BILLING SCREEN (Phase 1 — 결제수단 등록 · UI stub)
-//  실제 포트원 결제창 연동은 Phase 2에서 추가.
+//  BILLING SCREEN
 //  테스트 경로: 앱 URL 뒤에 #billing 붙이면 이 화면을 직접 확인할 수 있음.
 // ════════════════════
 (function(){
-    var regBtn=document.getElementById('billingRegBtn');
     var openTerms=document.getElementById('billingOpenTerms');
     var openPrivacy=document.getElementById('billingOpenPrivacy');
 
-    if(regBtn){
-        regBtn.addEventListener('click',function(){
-            try{window.Studia && window.Studia.track && window.Studia.track('billing_stub_click',{});}catch(e){}
-        });
-    }
     // 기존 setupOpenTerms / setupOpenPrivacy 핸들러를 재활용해서 약관·개인정보 모달 열기
     if(openTerms) openTerms.addEventListener('click',function(){try{document.getElementById('setupOpenTerms').click();}catch(e){}});
     if(openPrivacy) openPrivacy.addEventListener('click',function(){try{document.getElementById('setupOpenPrivacy').click();}catch(e){}});
@@ -8734,42 +8676,53 @@ JOKBO_INDEX["lit_history_novel"]={"key": "lit_history_novel", "label": "현대�
 JOKBO_INDEX["lit_history_classical"]={"key": "lit_history_classical", "label": "고전문학 문학사", "units": [{"code": "1", "name": "고대 문학", "cat": "1"}, {"code": "2", "name": "상고 시대~고려 시대의 문학", "cat": "1"}, {"code": "3", "name": "조선 시대의 문학", "cat": "1"}, {"code": "4", "name": "중세 문학", "cat": "1"}, {"code": "5", "name": "중세에서 근대로의 이행기 문학", "cat": "1"}]};
 
 
-// 족보 JSON 데이터 캐시 (과목별로 한 번만 로드)
+// 족보 데이터 캐시 (과목별로 한 번만 로드)
 var _jokboCache={};
+var _jokboPending={};
 
 function loadJokboData(subjectKey){
+    if(!subjectKey) return Promise.reject(new Error('데이터 키 없음'));
     if(_jokboCache[subjectKey]) return Promise.resolve(_jokboCache[subjectKey]);
-    // 이미 script 태그로 로드된 데이터가 있으면 바로 사용
     if(window._JOKBO_DATA && window._JOKBO_DATA[subjectKey]){
         _jokboCache[subjectKey]=window._JOKBO_DATA[subjectKey];
         return Promise.resolve(_jokboCache[subjectKey]);
     }
-    var url='data/'+subjectKey+'.json';
-    // fetch 우선 시도, 실패 시 script 태그 fallback (file:// 프로토콜 대응)
-    return fetch(url).then(function(res){
-        if(!res.ok) throw new Error('데이터 로드 실패');
-        return res.json();
-    }).then(function(data){
-        _jokboCache[subjectKey]=data;
-        return data;
-    }).catch(function(fetchErr){
-        console.warn('[Studia] fetch 실패, script 태그로 재시도:', fetchErr.message);
-        return new Promise(function(resolve,reject){
-            var s=document.createElement('script');
-            s.src='data/'+subjectKey+'.js';
-            s.onload=function(){
+    if(_jokboPending[subjectKey]) return _jokboPending[subjectKey];
+
+    _jokboPending[subjectKey]=new Promise(function(resolve,reject){
+        var existing=document.querySelector('script[data-jokbo-key="'+subjectKey+'"]');
+        if(existing){
+            existing.addEventListener('load',function(){
                 if(window._JOKBO_DATA && window._JOKBO_DATA[subjectKey]){
                     _jokboCache[subjectKey]=window._JOKBO_DATA[subjectKey];
-                    console.log('[Studia] script 태그로 로드 성공:', subjectKey);
-                    resolve(window._JOKBO_DATA[subjectKey]);
+                    resolve(_jokboCache[subjectKey]);
                 } else {
                     reject(new Error('데이터 없음'));
                 }
-            };
-            s.onerror=function(){reject(new Error('script 로드 실패'));};
-            document.head.appendChild(s);
-        });
+            });
+            existing.addEventListener('error',function(){reject(new Error('script 로드 실패'));});
+            return;
+        }
+
+        var s=document.createElement('script');
+        s.src='data/'+encodeURIComponent(subjectKey)+'.js';
+        s.async=true;
+        s.dataset.jokboKey=subjectKey;
+        s.onload=function(){
+            if(window._JOKBO_DATA && window._JOKBO_DATA[subjectKey]){
+                _jokboCache[subjectKey]=window._JOKBO_DATA[subjectKey];
+                resolve(_jokboCache[subjectKey]);
+            } else {
+                reject(new Error('데이터 없음'));
+            }
+        };
+        s.onerror=function(){reject(new Error('script 로드 실패'));};
+        document.head.appendChild(s);
+    }).finally(function(){
+        delete _jokboPending[subjectKey];
     });
+
+    return _jokboPending[subjectKey];
 }
 
 function findJokboText(data,conceptName){
@@ -11839,7 +11792,7 @@ document.getElementById('btnReport').addEventListener('click',function(){Report.
     // SolutionReview 화면 안의 업로드/제출/뒤로 가기 핸들러 바인딩
     try{if(typeof SolutionReview!=='undefined' && SolutionReview._bindInputs) SolutionReview._bindInputs();}catch(e){}
 })();
-// 프로필 메뉴 + 로그아웃 + 무료체험 D-N + 구독 관리/해지 (Phase 1 UI)
+// 프로필 메뉴 + 로그아웃 + 무료체험 D-N + 구독 관리/해지
 (function(){
     var btn=document.getElementById('btnProfile');
     var menu=document.getElementById('profileMenu');
@@ -11877,7 +11830,7 @@ document.getElementById('btnReport').addEventListener('click',function(){Report.
             cancelBtn.setAttribute('aria-disabled','true');
             cancelBtn.style.opacity='0.5';
             cancelBtn.style.cursor='not-allowed';
-            cancelBtn.title=reason||'체험 5일차부터 해지할 수 있어요';
+            cancelBtn.title=reason||'결제수단 등록 후 해지할 수 있어요';
         }
     }
 
@@ -11887,7 +11840,7 @@ document.getElementById('btnReport').addEventListener('click',function(){Report.
         // 정보가 없거나 결제수단 미등록 → D-N 숨김, 해지 비활성
         if(!info || !info.trial_ends_at || info.state==='needs_payment_method'){
             trialBox.style.display='none';
-            setCancelEnabled(false,'체험 5일차부터 해지할 수 있어요');
+            setCancelEnabled(false,'결제수단 등록 후 해지할 수 있어요');
             return;
         }
         // 유료 구독자 → Pro 표시, 해지 가능
@@ -11910,12 +11863,7 @@ document.getElementById('btnReport').addEventListener('click',function(){Report.
             trialDN.style.color=(daysLeft<=1?'#c0392b':'var(--navy-dark)');
         }
         if(trialNext) trialNext.textContent=fmtKoreanDate(info.trial_ends_at);
-        // 해지 가능: 체험 5일차부터 = 남은일수 ≤ 3
-        if(daysLeft<=3){
-            setCancelEnabled(true,'체험 해지 (자동결제만 취소, 남은 기간은 이용 가능)');
-        } else {
-            setCancelEnabled(false,'체험 5일차부터 해지할 수 있어요');
-        }
+        setCancelEnabled(true,'체험 해지 (자동결제만 취소, 남은 기간은 이용 가능)');
     }
 
     function fetchSubscription(userId){
@@ -11962,7 +11910,7 @@ document.getElementById('btnReport').addEventListener('click',function(){Report.
         if(e.key==='Escape' && !menu.hidden) closeMenu();
     });
 
-    // 구독 관리 (Phase 1: stub alert)
+    // 구독 관리
     if(subBtn){
         subBtn.addEventListener('click',function(){
             closeMenu();
@@ -11978,12 +11926,28 @@ document.getElementById('btnReport').addEventListener('click',function(){Report.
         });
     }
 
-    // 구독 해지 (Phase 1: stub alert — 실제 해지 API는 Phase 2에서 연결)
+    // 구독 해지
     if(cancelBtn){
         cancelBtn.addEventListener('click',function(){
             if(cancelBtn.disabled) return;
             closeMenu();
             if(!confirm('정말로 구독을 해지하시겠어요?\n\n• 자동결제가 취소됩니다.\n• 남은 체험 기간 동안은 계속 이용할 수 있어요.\n• 재가입은 언제든 가능합니다.')) return;
+            var s=window.Studia && window.Studia.sb;
+            if(!s){
+                alert('인증 정보를 확인할 수 없어요. 다시 로그인 후 시도해주세요.');
+                return;
+            }
+            s.auth.getUser().then(function(r){
+                var user=r&&r.data&&r.data.user;
+                if(!user) throw new Error('로그인이 필요합니다.');
+                return s.rpc('cancel_subscription',{p_user_id:user.id});
+            }).then(function(r){
+                if(r&&r.error) throw r.error;
+                alert('해지가 완료됐어요.\n남은 기간 동안 계속 이용할 수 있어요.');
+                setTimeout(function(){ window.location.reload(); },300);
+            }).catch(function(err){
+                alert('해지 처리 중 오류가 발생했어요: '+(err&&err.message?err.message:'잠시 후 다시 시도해주세요.'));
+            });
         });
     }
 
@@ -12692,7 +12656,7 @@ var Chat={
             <h4>제6조 (이용료 및 결제)</h4>
             <ul>
                 <li>본 서비스는 월 정기결제(구독) 방식으로 제공되며, 월 구독료는 <b>18,900원(VAT 포함)</b>입니다.</li>
-                <li>결제는 포트원(주)를 통해 월 자동 정기결제 방식으로 처리됩니다. 결제수단은 포트원가 지원하는 국내 신용·체크카드이며, 해외카드 및 영수증 발급 정책은 포트원 약관에 따릅니다.</li>
+                <li>결제는 포트원(PortOne)을 통해 NHN KCP(주)가 제공하는 결제 시스템으로 월 자동 정기결제 방식으로 처리됩니다. 결제수단은 NHN KCP(주)가 지원하는 국내 신용·체크카드이며, 해외카드 및 영수증 발급 정책은 NHN KCP(주)의 약관에 따릅니다.</li>
                 <li>이용료는 운영자의 정책에 따라 변경될 수 있으며, 변경 시 제3조에 따라 사전 공지됩니다.</li>
             </ul>
 
@@ -12700,13 +12664,13 @@ var Chat={
             <ul>
                 <li>신규 회원은 결제수단(신용·체크카드 등) 등록 완료 시점부터 <b>7일간의 무료 체험</b>을 제공받습니다.</li>
                 <li>무료 체험 종료일 0시에 등록된 결제수단으로 월 이용료가 자동 청구되며, 그 시점부터 유료 정기결제가 개시됩니다. 자동 결제 개시 3일 전에 이메일로 사전 안내합니다.</li>
-                <li>회원은 무료 체험 개시일을 1일차로 하여 <b>5일차 00시부터</b> 서비스 내 프로필 메뉴에서 해지할 수 있으며, 해지 시 자동결제는 진행되지 않고 남은 체험 기간 동안은 계속 이용할 수 있습니다. 4일차 이내에는 해지 기능이 제공되지 않습니다.</li>
+                <li>회원은 무료 체험 개시 직후부터 서비스 내 프로필 메뉴에서 언제든 해지할 수 있으며, 해지 시 자동결제는 진행되지 않고 남은 체험 기간 동안은 계속 이용할 수 있습니다.</li>
                 <li>본 조항은 본 약관 시행일(2026년 4월 25일) 이후 신규 가입 회원부터 적용됩니다.</li>
             </ul>
 
             <h4>제8조 (해지 및 환불)</h4>
             <ul>
-                <li>회원은 서비스 내 프로필 메뉴의 "구독 관리"를 통해 해지할 수 있습니다. 해지 시 다음 결제 예정일부터 청구가 중단되며, 당월 이용기간이 끝날 때까지는 서비스를 계속 이용할 수 있습니다. 단, 무료 체험 기간 중 해지 조건은 제7조에 따릅니다.</li>
+                <li>회원은 서비스 내 프로필 메뉴의 "구독 관리" 또는 "구독 해지"를 통해 언제든 해지할 수 있습니다. 해지 시 다음 결제 예정일부터 청구가 중단되며, 당월 이용기간이 끝날 때까지는 서비스를 계속 이용할 수 있습니다.</li>
                 <li>「전자상거래 등에서의 소비자보호에 관한 법률」 제17조에 따라, 결제일로부터 7일 이내이고 서비스를 실질적으로 이용하지 않은 경우 청약철회를 통해 전액 환불받을 수 있습니다.</li>
                 <li>이미 실질적으로 이용된 회차의 구독료는 환불되지 않음이 원칙이나, 운영자의 중대한 귀책사유로 서비스 이용이 불가능했던 경우 일할 환불합니다.</li>
             </ul>
@@ -12787,7 +12751,7 @@ var Chat={
             </ul>
             <p><b>4. 결제 시 (유료 이용자에 한함)</b></p>
             <ul>
-                <li>결제 수단 정보는 포트원가 직접 수집·보관하며, 운영자는 결제 식별자(주문번호·결제 성공 여부·결제 금액)만 전달받아 저장합니다. 카드번호·CVC 등 민감 결제정보는 운영자 서버에 저장하지 않습니다.</li>
+                <li>결제 수단 정보는 NHN KCP(주)가 직접 수집·보관하며, 운영자는 결제 식별자(주문번호·결제 성공 여부·결제 금액)만 전달받아 저장합니다. 카드번호·CVC 등 민감 결제정보는 운영자 서버에 저장하지 않습니다.</li>
             </ul>
 
             <h4>제2조 (개인정보의 수집·이용 목적)</h4>
@@ -12817,7 +12781,7 @@ var Chat={
             <ul>
                 <li><b>Supabase, Inc.</b> (미국) — 회원 인증, 데이터베이스 저장, Edge Function 실행</li>
                 <li><b>Anthropic, PBC</b> (미국) — AI 응답 생성 (Claude API)</li>
-                <li><b>포트원(주)</b> (대한민국) — 결제 처리 및 환불</li>
+                <li><b>NHN KCP(주)</b> (대한민국) — 결제 처리 및 환불 (포트원 연동)</li>
                 <li><b>GitHub, Inc.</b> (미국) — 정적 파일(웹페이지) 호스팅 (GitHub Pages)</li>
             </ul>
             <p>위 수탁사는 개인정보 처리 업무를 수행할 때 관련 법령과 계약을 준수할 의무가 있으며, 위탁 계약 변경 시 본 방침을 통해 고지합니다.</p>
