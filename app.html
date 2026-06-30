@@ -1270,7 +1270,11 @@
                 <li style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;"><span style="color:var(--blue);font-weight:700;">•</span><span>체험 기간 중 언제든 프로필 메뉴에서 해지할 수 있어요</span></li>
                 <li style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;"><span style="color:var(--blue);font-weight:700;">•</span><span>해지해도 남은 체험 기간은 끝까지 이용 가능</span></li>
             </ul>
-            <button class="btn btn-primary btn-block" id="billingRegBtn" style="font-size:1.02rem;padding:14px 20px;">
+            <label for="billingAgree" style="display:flex;gap:8px;align-items:flex-start;margin:0 0 12px;padding:10px 12px;background:var(--blue-pale);border-radius:8px;font-size:0.84rem;color:var(--navy-dark);cursor:pointer;line-height:1.5;font-weight:500;">
+                <input type="checkbox" id="billingAgree" style="width:18px;height:18px;margin-top:1px;flex-shrink:0;cursor:pointer;accent-color:var(--blue);">
+                <span>위 <b>정기결제 내용</b>(7일 무료체험 후 월 18,900원 자동결제)과 이용약관·개인정보 처리방침에 동의합니다.</span>
+            </label>
+            <button class="btn btn-primary btn-block" id="billingRegBtn" style="font-size:1.02rem;padding:14px 20px;" disabled>
                 💳 카드 등록하고 시작하기
             </button>
             <div style="margin-top:14px;padding:10px 12px;background:var(--blue-pale);border-radius:8px;font-size:0.76rem;color:var(--navy-dark);line-height:1.5;">
@@ -3239,6 +3243,17 @@ function showScreen(id){
     var target=document.getElementById(id);
     target.classList.add('active');
     _currentScreen=id;
+    // 결제수단 등록 화면: 정기결제 동의 체크박스를 켜야만 '카드 등록' 버튼 활성화
+    if(id==='screenBilling'){
+        try{
+            var _ba=document.getElementById('billingAgree');
+            var _bb=document.getElementById('billingRegBtn');
+            if(_ba&&_bb){
+                _ba.checked=false; _bb.disabled=true;
+                if(!_ba._wired){ _ba._wired=true; _ba.addEventListener('change',function(){ _bb.disabled=!_ba.checked; }); }
+            }
+        }catch(e){}
+    }
     // 화면 전환 이벤트 자동 기록
     try{window.Studia.track('screen_view',{from:prev,to:id});}catch(e){}
     // 접근성: 새 화면 포커스 이동 (스크린리더가 바뀐 화면을 인식)
